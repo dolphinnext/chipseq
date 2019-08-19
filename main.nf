@@ -55,87 +55,6 @@ fi
 
 }
 
-params.homer_dir =  ""  //* @input
-
-process Homer_Find_Motif_Module_homer_find_Motifs_Genome {
-
-publishDir params.outdir, overwrite: true, mode: 'copy',
-	saveAs: {filename ->
-	if (filename =~ /homer_${name}$/) "motif_finder_result_on_chip_peaks/$filename"
-}
-
-input:
- val run from g118_0_run_process_g118_1
-
-output:
- file "homer_${name}"  into g118_1_resultsdir_g118_5
-
-when:
-run == "yes"
-
-script:
-name = bed.baseName
-size = params.Homer_Find_Motif_Module_homer_find_Motifs_Genome.size
-"""
-mkdir preparsed
-export PATH=\$PATH:${params.homer_dir}/bin/
-findMotifsGenome.pl $bed ${_build} homer_${name} -size $size -preparsedDir preparsed
-"""
-
-
-}
-
-
-process Homer_Find_Motif_Module_homer_summary {
-
-publishDir params.outdir, overwrite: true, mode: 'copy',
-	saveAs: {filename ->
-	if (filename =~ /homerReport.*$/) "motif_finder_summary_on_chip_peaks/$filename"
-}
-
-input:
- file dir from g118_1_resultsdir_g118_5.collect()
-
-output:
- file "homerReport*"  into g118_5_resultsdir
-
-shell:
-'''
-#!/usr/bin/env perl
-use List::Util qw[min max];
-use strict;
-use File::Basename;
-use Getopt::Long;
-use Pod::Usage;
-use Data::Dumper;
-my $indir = $ENV{'PWD'};
-
-opendir D, $indir or die "Could not open $indir";
-my @alndirs = sort { $a cmp $b } grep /^homer_/, readdir(D);
-closedir D;
-
-`mkdir -p homerReport`;
-
-foreach my $d (@alndirs){
-    my $dir = "${indir}/$d";
-    my $libname=$d;
-    $libname=~s/homer_//;
-    print "replace links in the html report with hidden and renamed folders";
-    `cat $dir/homerResults.html | sed -e 's/.svg"/.html"/g' | sed -e 's:HREF="homerResults/:HREF=".${libname}homerResults/:g' | sed -e 's:<A HREF="knownResults.html">Known Motif Enrichment Results</A><BR/>::g' | sed -e 's:<A HREF="geneOntology.html">Gene Ontology Enrichment Results</A><BR/>::g' >> homerReport/homer_sum.html` if -e "$dir/homerResults.html";
-    `cat $dir/knownResults.html | sed -e 's/.svg"/.html"/g' | sed -e 's:HREF="knownResults/:HREF=".${libname}knownResults/:g' | sed -e 's:HREF="knownResults.txt":HREF=".${libname}knownResults/knownResults.txt":g' | sed -e 's:<A HREF="homerResults.html">Homer <i>de novo</i> Motif Results</A><BR/>::g' | sed -e 's:<A HREF="geneOntology.html">Gene Ontology Enrichment Results</A><BR/>::g' >> homerReport/homer_sum.html` if -e "$dir/knownResults.html";
-    `cp -r $dir/homerResults homerReport/.${libname}homerResults` if -d "$dir/homerResults";
-    `cp -r $dir/knownResults homerReport/.${libname}knownResults` if -d "$dir/knownResults";
-    `cp -r $dir/knownResults.txt homerReport/.${libname}knownResults/knownResults.txt` if -e "$dir/knownResults.txt";
-    `find homerReport -name "*.html" -exec sed -i 's/.svg"/.html"/g' {} +`;
-    `for fx in homerReport/.${libname}knownResults/*.svg; do mv \\$fx \\${fx\\%.svg}.html; done`;
-    `for fx in homerReport/.${libname}homerResults/*.svg; do mv \\$fx \\${fx\\%.svg}.html; done`;
-    `zip -r homerReport.zip homerReport`;
-}
-
-
-'''
-}
-
 params.run_Adapter_Removal =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Adapter_Removal"
 //* @style @multicolumn:{seed_mismatches, palindrome_clip_threshold, simple_clip_threshold} @condition:{Tool_for_Adapter_Removal="trimmomatic", seed_mismatches, palindrome_clip_threshold, simple_clip_threshold}, {Tool_for_Adapter_Removal="fastx_clipper", discard_non_clipped}
 
@@ -2463,283 +2382,6 @@ sub printFiles {
 
 }
 
-params.pdfbox_path =  ""  //* @input
-//* autofill
-if ($HOSTNAME == "default"){
-    $CPU  = 1
-    $MEMORY = 32
-}
-//* platform
-if ($HOSTNAME == "ghpcc06.umassrc.org"){
-    $TIME = 240
-    $CPU  = 1
-    $MEMORY = 32
-    $QUEUE = "short"
-}
-//* platform
-//* autofill
-
-process BAM_Analysis_Module_Picard {
-
-input:
-
-output:
- file "*_metrics"  into g126_121_outputFileOut_g126_82
- file "results/*.pdf"  into g126_121_outputFilePdf_g126_82
-
-when:
-(params.run_Picard_CollectMultipleMetrics && (params.run_Picard_CollectMultipleMetrics == "yes")) || !params.run_Picard_CollectMultipleMetrics
-
-script:
-"""
-picard CollectMultipleMetrics OUTPUT=${name}_multiple.out VALIDATION_STRINGENCY=LENIENT INPUT=${bam}
-mkdir results && java -jar ${params.pdfbox_path} PDFMerger *.pdf results/${name}_multi_metrics.pdf
-"""
-}
-
-
-process BAM_Analysis_Module_Picard_Summary {
-
-input:
- file picardOut from g126_121_outputFileOut_g126_82.collect()
- val mate from g_122_mate_g126_82
- file picardPdf from g126_121_outputFilePdf_g126_82.collect()
-
-output:
- file "*.tsv"  into g126_82_outputFileTSV
- file "results/*.pdf"  into g126_82_outputFilePdf
-
-shell:
-'''
-#!/usr/bin/env perl
-use List::Util qw[min max];
-use strict;
-use File::Basename;
-use Getopt::Long;
-use Pod::Usage; 
-use Data::Dumper;
-
-system("mkdir results && mv *.pdf results/. ");
-
-my $indir = $ENV{'PWD'};
-my $outd = $ENV{'PWD'};
-my @files = ();
-my @outtypes = ("CollectRnaSeqMetrics", "alignment_summary_metrics", "base_distribution_by_cycle_metrics", "insert_size_metrics", "quality_by_cycle_metrics", "quality_distribution_metrics" );
-
-foreach my $outtype (@outtypes)
-{
-my $ext="_multiple.out";
-$ext.=".$outtype" if ($outtype ne "CollectRnaSeqMetrics");
-@files = <$indir/*$ext>;
-
-my @rowheaders=();
-my @libs=();
-my %metricvals=();
-my %histvals=();
-
-my $pdffile="";
-my $libname="";
-foreach my $d (@files){
-  my $libname=basename($d, $ext);
-  print $libname."\\n";
-  push(@libs, $libname); 
-  getMetricVals($d, $libname, \\%metricvals, \\%histvals, \\@rowheaders);
-}
-
-my $sizemetrics = keys %metricvals;
-write_results("$outd/$outtype.stats.tsv", \\@libs,\\%metricvals, \\@rowheaders, "metric") if ($sizemetrics>0);
-my $sizehist = keys %histvals;
-write_results("$outd/$outtype.hist.tsv", \\@libs,\\%histvals, "none", "nt") if ($sizehist>0);
-
-}
-
-sub write_results
-{
-  my ($outfile, $libs, $vals, $rowheaders, $name )=@_;
-  open(OUT, ">$outfile");
-  print OUT "$name\\t".join("\\t", @{$libs})."\\n";
-  my $size=0;
-  $size=scalar(@{${$vals}{${$libs}[0]}}) if(exists ${$libs}[0] and exists ${$vals}{${$libs}[0]} );
-  
-  for (my $i=0; $i<$size;$i++)
-  { 
-    my $rowname=$i;
-    $rowname = ${$rowheaders}[$i] if ($name=~/metric/);
-    print OUT $rowname;
-    foreach my $lib (@{$libs})
-    {
-      print OUT "\\t".${${$vals}{$lib}}[$i];
-    } 
-    print OUT "\\n";
-  }
-  close(OUT);
-}
-
-sub getMetricVals{
-  my ($filename, $libname, $metricvals, $histvals,$rowheaders)=@_;
-  if (-e $filename){
-     my $nextisheader=0;
-     my $nextisvals=0;
-     my $nexthist=0;
-     open(IN, $filename);
-     while(my $line=<IN>)
-     {
-       chomp($line);
-       @{$rowheaders}=split(/\\t/, $line) if ($nextisheader && !scalar(@{$rowheaders})); 
-       if ($nextisvals) {
-         @{${$metricvals}{$libname}}=split(/\\t/, $line);
-         $nextisvals=0;
-       }
-       if($nexthist){
-          my @vals=split(/[\\s\\t]+/,$line); 
-          push(@{${$histvals}{$libname}}, $vals[1]) if (exists $vals[1]);
-       }
-       $nextisvals=1 if ($nextisheader); $nextisheader=0;
-       $nextisheader=1 if ($line=~/METRICS CLASS/);
-       $nexthist=1 if ($line=~/normalized_position/);
-     } 
-  }
-  
-}
-'''
-
-}
-
-params.bed =  ""  //* @input
-
-process BAM_Analysis_Module_RSeQC {
-
-input:
-
-output:
- file "result/*.out"  into g126_122_outputFileOut_g126_95
-
-when:
-(params.run_RSeQC && (params.run_RSeQC == "yes")) || !params.run_RSeQC
-
-script:
-"""
-mkdir result
-read_distribution.py  -i ${bam} -r ${params.bed}> result/RSeQC.${name}.out
-"""
-}
-
-
-process BAM_Analysis_Module_RSeQC_Summary {
-
-input:
- file rseqcOut from g126_122_outputFileOut_g126_95.collect()
- val mate from g_122_mate_g126_95
-
-output:
- file "*.tsv"  into g126_95_outputFileTSV
-
-shell:
-'''
-#!/usr/bin/env perl
-use List::Util qw[min max];
-use strict;
-use File::Basename;
-use Getopt::Long;
-use Pod::Usage; 
-use Data::Dumper;
-
-my $indir = $ENV{'PWD'};
-my $outd = $ENV{'PWD'};
-my @files = ();
-my @outtypes = ("RSeQC");
-my @order=( "Total Reads", "Total Tags" , "Total Assigned Tags", "CDS_Exons", "5'UTR_Exons", "3'UTR_Exons", "Introns", "TSS_up_1kb", "TSS_up_5kb", "TSS_up_10kb", "TES_down_1kb", "TES_down_5kb", "TES_down_10kb");
-my %lines=(
-  "Total Reads" => 1,
-  "Total Tags" => 1,
-  "Total Assigned Tags" => 1,
-  "CDS_Exons" => 2,
-  "5'UTR_Exons" => 2,
-  "3'UTR_Exons" => 2,
-  "Introns" => 2,
-  "TSS_up_1kb" => 2,
-  "TSS_up_5kb" => 2,
-  "TSS_up_10kb" => 2,
-  "TES_down_1kb" => 2,
-  "TES_down_5kb" => 2,
-  "TES_down_10kb" => 2
-);
-
-
-foreach my $outtype (@outtypes)
-{
-
-my $ext=".out";
-@files = <$indir/$outtype*$ext>;
-
-my @rowheaders=();
-my @libs=();
-my %vals=();
-my %normvals=();
-my $type = "rsem";
-
-foreach my $d (@files){
-  my $libname=basename($d, $ext);
-  $libname=~s/RSeQC.//g;
-  $libname=~s/rsem.out.//g;
-  $libname=~s/.genome//g;
-  print $libname."\\n";
-  push(@libs, $libname); 
-  getVals($d, $libname, \\%vals, \\%normvals, \\%lines);
-}
-#print Dumper(%vals);
-#print Dumper(%normvals);
-
-my $sizemetrics = keys %vals;
-write_results("$outd/$outtype.$type.counts.tsv", \\@libs,\\%vals, \\@order, "region") if ($sizemetrics>0);
-write_results("$outd/$outtype.$type.tagskb.tsv", \\@libs,\\%normvals, \\@order, "region") if ($sizemetrics>0);
-
-}
-
-sub write_results
-{
-  my ($outfile, $libs, $vals, $order, $name )=@_;
-  open(OUT, ">$outfile");
-  print OUT "$name\\t".join("\\t", @{$libs})."\\n";
-
-  my $lib=${$libs}[0];
-  foreach my $key ( @order )
-  {
-    if (exists ${$vals}{$lib}{$key}) {
-    print OUT $key;
-    foreach my $lib (@{$libs})
-    {
-      print OUT "\\t".${$vals}{$lib}{$key};
-    } 
-    print OUT "\\n";
-    }
-  }
-  close(OUT);
-}
-
-sub getVals{
-  my ($filename, $libname, $vals, $normvals, $lines)=@_;
-  if (-e $filename){
-     open(IN, $filename);
-     while(my $line=<IN>)
-     {
-       chomp($line);
-       my @vals_arr=split(/\\s{2,}/,$line);
-       if (exists ${$lines}{$vals_arr[0]}) {
-         my $idx=${$lines}{$vals_arr[0]};
-         ${$vals}{$libname}{$vals_arr[0]}=$vals_arr[$idx] if (exists $vals_arr[$idx]);
-         if ($idx==2) {
-             ${$normvals}{$libname}{$vals_arr[0]}=$vals_arr[3] if (exists $vals_arr[3]);
-         }
-       }
-     } 
-  }
-  
-}
-'''
-
-}
-
 //* @style @array:{run_name,run_parameters} @multicolumn:{run_name,run_parameters}
 
 process BAM_Analysis_Module_featureCounts_Prep {
@@ -2767,163 +2409,6 @@ for (i = 0; i < run_parameters.size(); i++) {
 """
 """
 
-}
-
-params.gtf =  ""  //* @input
-
-
-process BAM_Analysis_Module_featureCounts {
-
-input:
- val paired from g_122_mate_g126_126
- each run_params from g126_125_run_parameters_g126_126
-
-output:
- file "*"  into g126_126_outputFileTSV_g126_117
-
-script:
-pairText = ""
-if (paired == "pair"){
-    pairText = "-p"
-}
-
-run_name = run_params["run_name"] 
-run_parameters = run_params["run_parameters"] 
-
-"""
-featureCounts ${pairText} ${run_parameters} -a ${params.gtf} -o ${name}@${run_name}@fCounts.txt ${bam}
-## remove first line
-sed -i '1d' ${name}@${run_name}@fCounts.txt
-
-"""
-}
-
-//* autofill
-//* platform
-if ($HOSTNAME == "ghpcc06.umassrc.org"){
-    $TIME = 30
-    $CPU  = 1
-    $MEMORY = 10
-    $QUEUE = "short"
-}
-//* platform
-//* autofill
-
-process BAM_Analysis_Module_summary_featureCounts {
-
-input:
- file featureCountsOut from g126_126_outputFileTSV_g126_117.collect()
-
-output:
- file "*_featureCounts.tsv"  into g126_117_outputFile
- file "*_featureCounts.sum.tsv"  into g126_117_outFileTSV
-
-shell:
-'''
-#!/usr/bin/env perl
-
-# Step 1: Merge count files
-my %tf = ( expected_count => 6 );
-my @run_name=();
-chomp(my $contents = `ls *@fCounts.txt`);
-my @files = split(/[\\n]+/, $contents);
-foreach my $file (@files){
-    $file=~/(.*)\\@(.*)\\@fCounts\\.txt/;
-    my $runname = $2;
-    push(@run_name, $runname) unless grep{$_ eq $runname} @run_name;
-}
-
-
-my @expectedCount_ar = ("expected_count");
-for($l = 0; $l <= $#run_name; $l++) {
-    my $runName = $run_name[$l];
-    for($ll = 0; $ll <= $#expectedCount_ar; $ll++) {
-        my $expectedCount = $expectedCount_ar[$ll];
-    
-        my @a=();
-        my %b=();
-        my %c=();
-        my $i=0;
-        chomp(my $contents = `ls *\\@${runName}\\@fCounts.txt`);
-        my @files = split(/[\\n]+/, $contents);
-        foreach my $file (@files){
-        $i++;
-        $file=~/(.*)\\@${runName}\\@fCounts\\.txt/;
-        my $libname = $1; 
-        $a[$i]=$libname;
-        open IN, $file;
-            $_=<IN>;
-            while(<IN>){
-                my @v=split; 
-                $b{$v[0]}{$i}=$v[$tf{$expectedCount}];
-                $c{$v[0]}=$v[5]; #length column
-            }
-            close IN;
-        }
-        my $outfile="$runName"."_featureCounts.tsv";
-        open OUT, ">$outfile";
-        if ($runName eq "transcript_id") {
-            print OUT "transcript\tlength";
-        } else {
-            print OUT "gene\tlength";
-        }
-    
-        for(my $j=1;$j<=$i;$j++) {
-            print OUT "\t$a[$j]";
-        }
-        print OUT "\n";
-    
-        foreach my $key (keys %b) {
-            print OUT "$key\t$c{$key}";
-            for(my $j=1;$j<=$i;$j++){
-                print OUT "\t$b{$key}{$j}";
-            }
-            print OUT "\n";
-        }
-        close OUT;
-    }
-}
-
-# Step 2: Merge summary files
-for($l = 0; $l <= $#run_name; $l++) {
-    my $runName = $run_name[$l];
-    my @a=();
-    my %b=();
-    my $i=0;
-    chomp(my $contents = `ls *\\@${runName}\\@fCounts.txt.summary`);
-    my @files = split(/[\\n]+/, $contents);
-    foreach my $file (@files){
-        $i++;
-        $file=~/(.*)\\@${runName}\\@fCounts\\.txt\\.summary/;
-        my $libname = $1; 
-        $a[$i]=$libname;
-        open IN, $file;
-        $_=<IN>;
-        while(<IN>){
-            my @v=split; 
-            $b{$v[0]}{$i}=$v[1];
-        }
-        close IN;
-    }
-    my $outfile="$runName"."_featureCounts.sum.tsv";
-    open OUT, ">$outfile";
-    print OUT "criteria";
-    for(my $j=1;$j<=$i;$j++) {
-        print OUT "\t$a[$j]";
-    }
-    print OUT "\n";
-    
-    foreach my $key (keys %b) {
-        print OUT "$key";
-        for(my $j=1;$j<=$i;$j++){
-            print OUT "\t$b{$key}{$j}";
-        }
-        print OUT "\n";
-    }
-    close OUT;
-}
-
-'''
 }
 
 //* autofill
@@ -3133,7 +2618,7 @@ if ($HOSTNAME == "ghpcc06.umassrc.org"){
 //* platform
 //* autofill
 if (!((params.run_Remove_Multimappers_with_Picard && (params.run_Remove_Multimappers_with_Picard == "yes")) || !params.run_Remove_Multimappers_with_Picard)){
-g128_21_mapped_reads_g128_22.into{g128_22_mapped_reads_g128_25}
+g128_21_mapped_reads_g128_22.into{g128_22_mapped_reads_g128_25; g128_22_mapped_reads_g126_121; g128_22_mapped_reads_g126_122; g128_22_mapped_reads_g126_123; g128_22_mapped_reads_g126_124; g128_22_mapped_reads_g126_126}
 g128_22_publish = Channel.empty()
 g128_22_log_file_g128_23 = Channel.empty()
 } else {
@@ -3145,7 +2630,7 @@ input:
  set val(name), file(bam) from g128_21_mapped_reads_g128_22
 
 output:
- set val(name), file("bam/${name}.bam")  into g128_22_mapped_reads_g128_25
+ set val(name), file("bam/${name}.bam")  into g128_22_mapped_reads_g128_25, g128_22_mapped_reads_g126_121, g128_22_mapped_reads_g126_122, g128_22_mapped_reads_g126_123, g128_22_mapped_reads_g126_124, g128_22_mapped_reads_g126_126
  set val(name), file("${name}*")  into g128_22_publish
  file "${name}_duplicates_stats.log"  into g128_22_log_file_g128_23
 
@@ -3170,6 +2655,517 @@ mv ${name}_sorted.dedup.bam bam/${name}.bam
 }
 }
 
+
+params.gtf =  ""  //* @input
+
+
+process BAM_Analysis_Module_featureCounts {
+
+input:
+ set val(name), file(bam) from g128_22_mapped_reads_g126_126
+ val paired from g_122_mate_g126_126
+ each run_params from g126_125_run_parameters_g126_126
+
+output:
+ file "*"  into g126_126_outputFileTSV_g126_117
+
+script:
+pairText = ""
+if (paired == "pair"){
+    pairText = "-p"
+}
+
+run_name = run_params["run_name"] 
+run_parameters = run_params["run_parameters"] 
+
+"""
+featureCounts ${pairText} ${run_parameters} -a ${params.gtf} -o ${name}@${run_name}@fCounts.txt ${bam}
+## remove first line
+sed -i '1d' ${name}@${run_name}@fCounts.txt
+
+"""
+}
+
+//* autofill
+//* platform
+if ($HOSTNAME == "ghpcc06.umassrc.org"){
+    $TIME = 30
+    $CPU  = 1
+    $MEMORY = 10
+    $QUEUE = "short"
+}
+//* platform
+//* autofill
+
+process BAM_Analysis_Module_summary_featureCounts {
+
+input:
+ file featureCountsOut from g126_126_outputFileTSV_g126_117.collect()
+
+output:
+ file "*_featureCounts.tsv"  into g126_117_outputFile
+ file "*_featureCounts.sum.tsv"  into g126_117_outFileTSV
+
+shell:
+'''
+#!/usr/bin/env perl
+
+# Step 1: Merge count files
+my %tf = ( expected_count => 6 );
+my @run_name=();
+chomp(my $contents = `ls *@fCounts.txt`);
+my @files = split(/[\\n]+/, $contents);
+foreach my $file (@files){
+    $file=~/(.*)\\@(.*)\\@fCounts\\.txt/;
+    my $runname = $2;
+    push(@run_name, $runname) unless grep{$_ eq $runname} @run_name;
+}
+
+
+my @expectedCount_ar = ("expected_count");
+for($l = 0; $l <= $#run_name; $l++) {
+    my $runName = $run_name[$l];
+    for($ll = 0; $ll <= $#expectedCount_ar; $ll++) {
+        my $expectedCount = $expectedCount_ar[$ll];
+    
+        my @a=();
+        my %b=();
+        my %c=();
+        my $i=0;
+        chomp(my $contents = `ls *\\@${runName}\\@fCounts.txt`);
+        my @files = split(/[\\n]+/, $contents);
+        foreach my $file (@files){
+        $i++;
+        $file=~/(.*)\\@${runName}\\@fCounts\\.txt/;
+        my $libname = $1; 
+        $a[$i]=$libname;
+        open IN, $file;
+            $_=<IN>;
+            while(<IN>){
+                my @v=split; 
+                $b{$v[0]}{$i}=$v[$tf{$expectedCount}];
+                $c{$v[0]}=$v[5]; #length column
+            }
+            close IN;
+        }
+        my $outfile="$runName"."_featureCounts.tsv";
+        open OUT, ">$outfile";
+        if ($runName eq "transcript_id") {
+            print OUT "transcript\tlength";
+        } else {
+            print OUT "gene\tlength";
+        }
+    
+        for(my $j=1;$j<=$i;$j++) {
+            print OUT "\t$a[$j]";
+        }
+        print OUT "\n";
+    
+        foreach my $key (keys %b) {
+            print OUT "$key\t$c{$key}";
+            for(my $j=1;$j<=$i;$j++){
+                print OUT "\t$b{$key}{$j}";
+            }
+            print OUT "\n";
+        }
+        close OUT;
+    }
+}
+
+# Step 2: Merge summary files
+for($l = 0; $l <= $#run_name; $l++) {
+    my $runName = $run_name[$l];
+    my @a=();
+    my %b=();
+    my $i=0;
+    chomp(my $contents = `ls *\\@${runName}\\@fCounts.txt.summary`);
+    my @files = split(/[\\n]+/, $contents);
+    foreach my $file (@files){
+        $i++;
+        $file=~/(.*)\\@${runName}\\@fCounts\\.txt\\.summary/;
+        my $libname = $1; 
+        $a[$i]=$libname;
+        open IN, $file;
+        $_=<IN>;
+        while(<IN>){
+            my @v=split; 
+            $b{$v[0]}{$i}=$v[1];
+        }
+        close IN;
+    }
+    my $outfile="$runName"."_featureCounts.sum.tsv";
+    open OUT, ">$outfile";
+    print OUT "criteria";
+    for(my $j=1;$j<=$i;$j++) {
+        print OUT "\t$a[$j]";
+    }
+    print OUT "\n";
+    
+    foreach my $key (keys %b) {
+        print OUT "$key";
+        for(my $j=1;$j<=$i;$j++){
+            print OUT "\t$b{$key}{$j}";
+        }
+        print OUT "\n";
+    }
+    close OUT;
+}
+
+'''
+}
+
+params.bed =  ""  //* @input
+
+process BAM_Analysis_Module_RSeQC {
+
+input:
+ set val(name), file(bam) from g128_22_mapped_reads_g126_122
+
+output:
+ file "result/*.out"  into g126_122_outputFileOut_g126_95
+
+when:
+(params.run_RSeQC && (params.run_RSeQC == "yes")) || !params.run_RSeQC
+
+script:
+"""
+mkdir result
+read_distribution.py  -i ${bam} -r ${params.bed}> result/RSeQC.${name}.out
+"""
+}
+
+
+process BAM_Analysis_Module_RSeQC_Summary {
+
+input:
+ file rseqcOut from g126_122_outputFileOut_g126_95.collect()
+ val mate from g_122_mate_g126_95
+
+output:
+ file "*.tsv"  into g126_95_outputFileTSV
+
+shell:
+'''
+#!/usr/bin/env perl
+use List::Util qw[min max];
+use strict;
+use File::Basename;
+use Getopt::Long;
+use Pod::Usage; 
+use Data::Dumper;
+
+my $indir = $ENV{'PWD'};
+my $outd = $ENV{'PWD'};
+my @files = ();
+my @outtypes = ("RSeQC");
+my @order=( "Total Reads", "Total Tags" , "Total Assigned Tags", "CDS_Exons", "5'UTR_Exons", "3'UTR_Exons", "Introns", "TSS_up_1kb", "TSS_up_5kb", "TSS_up_10kb", "TES_down_1kb", "TES_down_5kb", "TES_down_10kb");
+my %lines=(
+  "Total Reads" => 1,
+  "Total Tags" => 1,
+  "Total Assigned Tags" => 1,
+  "CDS_Exons" => 2,
+  "5'UTR_Exons" => 2,
+  "3'UTR_Exons" => 2,
+  "Introns" => 2,
+  "TSS_up_1kb" => 2,
+  "TSS_up_5kb" => 2,
+  "TSS_up_10kb" => 2,
+  "TES_down_1kb" => 2,
+  "TES_down_5kb" => 2,
+  "TES_down_10kb" => 2
+);
+
+
+foreach my $outtype (@outtypes)
+{
+
+my $ext=".out";
+@files = <$indir/$outtype*$ext>;
+
+my @rowheaders=();
+my @libs=();
+my %vals=();
+my %normvals=();
+my $type = "rsem";
+
+foreach my $d (@files){
+  my $libname=basename($d, $ext);
+  $libname=~s/RSeQC.//g;
+  $libname=~s/rsem.out.//g;
+  $libname=~s/.genome//g;
+  print $libname."\\n";
+  push(@libs, $libname); 
+  getVals($d, $libname, \\%vals, \\%normvals, \\%lines);
+}
+#print Dumper(%vals);
+#print Dumper(%normvals);
+
+my $sizemetrics = keys %vals;
+write_results("$outd/$outtype.$type.counts.tsv", \\@libs,\\%vals, \\@order, "region") if ($sizemetrics>0);
+write_results("$outd/$outtype.$type.tagskb.tsv", \\@libs,\\%normvals, \\@order, "region") if ($sizemetrics>0);
+
+}
+
+sub write_results
+{
+  my ($outfile, $libs, $vals, $order, $name )=@_;
+  open(OUT, ">$outfile");
+  print OUT "$name\\t".join("\\t", @{$libs})."\\n";
+
+  my $lib=${$libs}[0];
+  foreach my $key ( @order )
+  {
+    if (exists ${$vals}{$lib}{$key}) {
+    print OUT $key;
+    foreach my $lib (@{$libs})
+    {
+      print OUT "\\t".${$vals}{$lib}{$key};
+    } 
+    print OUT "\\n";
+    }
+  }
+  close(OUT);
+}
+
+sub getVals{
+  my ($filename, $libname, $vals, $normvals, $lines)=@_;
+  if (-e $filename){
+     open(IN, $filename);
+     while(my $line=<IN>)
+     {
+       chomp($line);
+       my @vals_arr=split(/\\s{2,}/,$line);
+       if (exists ${$lines}{$vals_arr[0]}) {
+         my $idx=${$lines}{$vals_arr[0]};
+         ${$vals}{$libname}{$vals_arr[0]}=$vals_arr[$idx] if (exists $vals_arr[$idx]);
+         if ($idx==2) {
+             ${$normvals}{$libname}{$vals_arr[0]}=$vals_arr[3] if (exists $vals_arr[3]);
+         }
+       }
+     } 
+  }
+  
+}
+'''
+
+}
+
+params.pdfbox_path =  ""  //* @input
+//* autofill
+if ($HOSTNAME == "default"){
+    $CPU  = 1
+    $MEMORY = 32
+}
+//* platform
+if ($HOSTNAME == "ghpcc06.umassrc.org"){
+    $TIME = 240
+    $CPU  = 1
+    $MEMORY = 32
+    $QUEUE = "short"
+}
+//* platform
+//* autofill
+
+process BAM_Analysis_Module_Picard {
+
+input:
+ set val(name), file(bam) from g128_22_mapped_reads_g126_121
+
+output:
+ file "*_metrics"  into g126_121_outputFileOut_g126_82
+ file "results/*.pdf"  into g126_121_outputFilePdf_g126_82
+
+when:
+(params.run_Picard_CollectMultipleMetrics && (params.run_Picard_CollectMultipleMetrics == "yes")) || !params.run_Picard_CollectMultipleMetrics
+
+script:
+"""
+picard CollectMultipleMetrics OUTPUT=${name}_multiple.out VALIDATION_STRINGENCY=LENIENT INPUT=${bam}
+mkdir results && java -jar ${params.pdfbox_path} PDFMerger *.pdf results/${name}_multi_metrics.pdf
+"""
+}
+
+
+process BAM_Analysis_Module_Picard_Summary {
+
+input:
+ file picardOut from g126_121_outputFileOut_g126_82.collect()
+ val mate from g_122_mate_g126_82
+ file picardPdf from g126_121_outputFilePdf_g126_82.collect()
+
+output:
+ file "*.tsv"  into g126_82_outputFileTSV
+ file "results/*.pdf"  into g126_82_outputFilePdf
+
+shell:
+'''
+#!/usr/bin/env perl
+use List::Util qw[min max];
+use strict;
+use File::Basename;
+use Getopt::Long;
+use Pod::Usage; 
+use Data::Dumper;
+
+system("mkdir results && mv *.pdf results/. ");
+
+my $indir = $ENV{'PWD'};
+my $outd = $ENV{'PWD'};
+my @files = ();
+my @outtypes = ("CollectRnaSeqMetrics", "alignment_summary_metrics", "base_distribution_by_cycle_metrics", "insert_size_metrics", "quality_by_cycle_metrics", "quality_distribution_metrics" );
+
+foreach my $outtype (@outtypes)
+{
+my $ext="_multiple.out";
+$ext.=".$outtype" if ($outtype ne "CollectRnaSeqMetrics");
+@files = <$indir/*$ext>;
+
+my @rowheaders=();
+my @libs=();
+my %metricvals=();
+my %histvals=();
+
+my $pdffile="";
+my $libname="";
+foreach my $d (@files){
+  my $libname=basename($d, $ext);
+  print $libname."\\n";
+  push(@libs, $libname); 
+  getMetricVals($d, $libname, \\%metricvals, \\%histvals, \\@rowheaders);
+}
+
+my $sizemetrics = keys %metricvals;
+write_results("$outd/$outtype.stats.tsv", \\@libs,\\%metricvals, \\@rowheaders, "metric") if ($sizemetrics>0);
+my $sizehist = keys %histvals;
+write_results("$outd/$outtype.hist.tsv", \\@libs,\\%histvals, "none", "nt") if ($sizehist>0);
+
+}
+
+sub write_results
+{
+  my ($outfile, $libs, $vals, $rowheaders, $name )=@_;
+  open(OUT, ">$outfile");
+  print OUT "$name\\t".join("\\t", @{$libs})."\\n";
+  my $size=0;
+  $size=scalar(@{${$vals}{${$libs}[0]}}) if(exists ${$libs}[0] and exists ${$vals}{${$libs}[0]} );
+  
+  for (my $i=0; $i<$size;$i++)
+  { 
+    my $rowname=$i;
+    $rowname = ${$rowheaders}[$i] if ($name=~/metric/);
+    print OUT $rowname;
+    foreach my $lib (@{$libs})
+    {
+      print OUT "\\t".${${$vals}{$lib}}[$i];
+    } 
+    print OUT "\\n";
+  }
+  close(OUT);
+}
+
+sub getMetricVals{
+  my ($filename, $libname, $metricvals, $histvals,$rowheaders)=@_;
+  if (-e $filename){
+     my $nextisheader=0;
+     my $nextisvals=0;
+     my $nexthist=0;
+     open(IN, $filename);
+     while(my $line=<IN>)
+     {
+       chomp($line);
+       @{$rowheaders}=split(/\\t/, $line) if ($nextisheader && !scalar(@{$rowheaders})); 
+       if ($nextisvals) {
+         @{${$metricvals}{$libname}}=split(/\\t/, $line);
+         $nextisvals=0;
+       }
+       if($nexthist){
+          my @vals=split(/[\\s\\t]+/,$line); 
+          push(@{${$histvals}{$libname}}, $vals[1]) if (exists $vals[1]);
+       }
+       $nextisvals=1 if ($nextisheader); $nextisheader=0;
+       $nextisheader=1 if ($line=~/METRICS CLASS/);
+       $nexthist=1 if ($line=~/normalized_position/);
+     } 
+  }
+  
+}
+'''
+
+}
+
+params.genome_sizes =  ""  //* @input
+
+//* autofill
+if ($HOSTNAME == "default"){
+    $CPU  = 1
+    $MEMORY = 48
+}
+//* platform
+if ($HOSTNAME == "ghpcc06.umassrc.org"){
+    $TIME = 240
+    $CPU  = 1
+    $MEMORY = 48
+    $QUEUE = "short"
+} 
+//* platform
+//* autofill
+
+process BAM_Analysis_Module_UCSC_BAM2BigWig_converter {
+
+input:
+ set val(name), file(bam) from g128_22_mapped_reads_g126_124
+
+output:
+ file "*.bw"  into g126_124_outputFileBw
+
+when:
+(params.run_BigWig_Conversion && (params.run_BigWig_Conversion == "yes")) || !params.run_BigWig_Conversion
+
+script:
+nameAll = bam.toString()
+if (nameAll.contains('_sorted.bam')) {
+    runSamtools = ''
+} else {
+    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index "+ name+"_sorted.bam "
+}
+
+"""
+$runSamtools
+bedtools genomecov -split -bg -ibam ${name}_sorted.bam -g ${params.genome_sizes} > ${name}.bg 
+wigToBigWig -clip -itemsPerSlot=1 ${name}.bg ${params.genome_sizes} ${name}.bw 
+"""
+}
+
+igv_extention_factor = params.BAM_Analysis_Module_IGV_BAM2TDF_converter.igv_extention_factor
+igv_window_size = params.BAM_Analysis_Module_IGV_BAM2TDF_converter.igv_window_size
+
+params.genome =  ""  //* @input
+
+process BAM_Analysis_Module_IGV_BAM2TDF_converter {
+
+input:
+ val mate from g_122_mate_g126_123
+ set val(name), file(bam) from g128_22_mapped_reads_g126_123
+
+output:
+ file "*.tdf"  into g126_123_outputFileOut
+
+when:
+(params.run_IGV_TDF_Conversion && (params.run_IGV_TDF_Conversion == "yes")) || !params.run_IGV_TDF_Conversion
+
+script:
+pairedText = (params.nucleicAcidType == "dna" && mate == "pair") ? " --pairs " : ""
+nameAll = bam.toString()
+if (nameAll.contains('_sorted.bam')) {
+    runSamtools = ''
+} else {
+    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index "+ name+"_sorted.bam "
+}
+"""
+$runSamtools
+igvtools count -w ${igv_window_size} -e ${igv_extention_factor} ${pairedText} ${name}_sorted.bam ${name}.tdf ${params.genome}
+"""
+}
 
 
 process ChIP_Module_ChIP_Prep {
@@ -3217,7 +3213,7 @@ input:
 
 output:
  val compare_bed  into g128_9_compare_bed_g128_27
- file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10
+ file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g118_1
  set val(name), file("bam/*.bam")  into g128_9_bam_file_g128_10, g128_9_bam_file_g128_27
  file "${name}*"  into g128_9_resultsdir
  val name  into g128_9_name
@@ -3330,6 +3326,88 @@ output:
  cat ${bed} | cut -f -6 | bedtools sort -i stdin | bedtools slop -i stdin -b 100 -g ${params.genome_sizes} | bedtools merge -i stdin | awk '{print \$0"\t"\$1"_"\$2"_"\$3}' > merged.bed
 
 """
+}
+
+params.homer_dir =  ""  //* @input
+
+process Homer_Find_Motif_Module_homer_find_Motifs_Genome {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /homer_${name}$/) "motif_finder_result_on_chip_peaks/$filename"
+}
+
+input:
+ file bed from g128_9_bed_g118_1
+ val run from g118_0_run_process_g118_1
+
+output:
+ file "homer_${name}"  into g118_1_resultsdir_g118_5
+
+when:
+run == "yes"
+
+script:
+name = bed.baseName
+size = params.Homer_Find_Motif_Module_homer_find_Motifs_Genome.size
+"""
+mkdir preparsed
+export PATH=\$PATH:${params.homer_dir}/bin/
+findMotifsGenome.pl $bed ${_build} homer_${name} -size $size -preparsedDir preparsed
+"""
+
+
+}
+
+
+process Homer_Find_Motif_Module_homer_summary {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /homerReport.*$/) "motif_finder_summary_on_chip_peaks/$filename"
+}
+
+input:
+ file dir from g118_1_resultsdir_g118_5.collect()
+
+output:
+ file "homerReport*"  into g118_5_resultsdir
+
+shell:
+'''
+#!/usr/bin/env perl
+use List::Util qw[min max];
+use strict;
+use File::Basename;
+use Getopt::Long;
+use Pod::Usage;
+use Data::Dumper;
+my $indir = $ENV{'PWD'};
+
+opendir D, $indir or die "Could not open $indir";
+my @alndirs = sort { $a cmp $b } grep /^homer_/, readdir(D);
+closedir D;
+
+`mkdir -p homerReport`;
+
+foreach my $d (@alndirs){
+    my $dir = "${indir}/$d";
+    my $libname=$d;
+    $libname=~s/homer_//;
+    print "replace links in the html report with hidden and renamed folders";
+    `cat $dir/homerResults.html | sed -e 's/.svg"/.html"/g' | sed -e 's:HREF="homerResults/:HREF=".${libname}homerResults/:g' | sed -e 's:<A HREF="knownResults.html">Known Motif Enrichment Results</A><BR/>::g' | sed -e 's:<A HREF="geneOntology.html">Gene Ontology Enrichment Results</A><BR/>::g' >> homerReport/homer_sum.html` if -e "$dir/homerResults.html";
+    `cat $dir/knownResults.html | sed -e 's/.svg"/.html"/g' | sed -e 's:HREF="knownResults/:HREF=".${libname}knownResults/:g' | sed -e 's:HREF="knownResults.txt":HREF=".${libname}knownResults/knownResults.txt":g' | sed -e 's:<A HREF="homerResults.html">Homer <i>de novo</i> Motif Results</A><BR/>::g' | sed -e 's:<A HREF="geneOntology.html">Gene Ontology Enrichment Results</A><BR/>::g' >> homerReport/homer_sum.html` if -e "$dir/knownResults.html";
+    `cp -r $dir/homerResults homerReport/.${libname}homerResults` if -d "$dir/homerResults";
+    `cp -r $dir/knownResults homerReport/.${libname}knownResults` if -d "$dir/knownResults";
+    `cp -r $dir/knownResults.txt homerReport/.${libname}knownResults/knownResults.txt` if -e "$dir/knownResults.txt";
+    `find homerReport -name "*.html" -exec sed -i 's/.svg"/.html"/g' {} +`;
+    `for fx in homerReport/.${libname}knownResults/*.svg; do mv \\$fx \\${fx\\%.svg}.html; done`;
+    `for fx in homerReport/.${libname}homerResults/*.svg; do mv \\$fx \\${fx\\%.svg}.html; done`;
+    `zip -r homerReport.zip homerReport`;
+}
+
+
+'''
 }
 
 
@@ -3510,78 +3588,6 @@ foreach my $name (keys %tsv){
 }
 close(OUT);
 '''
-}
-
-igv_extention_factor = params.BAM_Analysis_Module_IGV_BAM2TDF_converter.igv_extention_factor
-igv_window_size = params.BAM_Analysis_Module_IGV_BAM2TDF_converter.igv_window_size
-
-params.genome =  ""  //* @input
-
-process BAM_Analysis_Module_IGV_BAM2TDF_converter {
-
-input:
- val mate from g_122_mate_g126_123
-
-output:
- file "*.tdf"  into g126_123_outputFileOut
-
-when:
-(params.run_IGV_TDF_Conversion && (params.run_IGV_TDF_Conversion == "yes")) || !params.run_IGV_TDF_Conversion
-
-script:
-pairedText = (params.nucleicAcidType == "dna" && mate == "pair") ? " --pairs " : ""
-nameAll = bam.toString()
-if (nameAll.contains('_sorted.bam')) {
-    runSamtools = ''
-} else {
-    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index "+ name+"_sorted.bam "
-}
-"""
-$runSamtools
-igvtools count -w ${igv_window_size} -e ${igv_extention_factor} ${pairedText} ${name}_sorted.bam ${name}.tdf ${params.genome}
-"""
-}
-
-params.genome_sizes =  ""  //* @input
-
-//* autofill
-if ($HOSTNAME == "default"){
-    $CPU  = 1
-    $MEMORY = 48
-}
-//* platform
-if ($HOSTNAME == "ghpcc06.umassrc.org"){
-    $TIME = 240
-    $CPU  = 1
-    $MEMORY = 48
-    $QUEUE = "short"
-} 
-//* platform
-//* autofill
-
-process BAM_Analysis_Module_UCSC_BAM2BigWig_converter {
-
-input:
-
-output:
- file "*.bw"  into g126_124_outputFileBw
-
-when:
-(params.run_BigWig_Conversion && (params.run_BigWig_Conversion == "yes")) || !params.run_BigWig_Conversion
-
-script:
-nameAll = bam.toString()
-if (nameAll.contains('_sorted.bam')) {
-    runSamtools = ''
-} else {
-    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index "+ name+"_sorted.bam "
-}
-
-"""
-$runSamtools
-bedtools genomecov -split -bg -ibam ${name}_sorted.bam -g ${params.genome_sizes} > ${name}.bg 
-wigToBigWig -clip -itemsPerSlot=1 ${name}.bg ${params.genome_sizes} ${name}.bw 
-"""
 }
 
 
