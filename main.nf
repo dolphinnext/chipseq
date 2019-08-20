@@ -3203,9 +3203,8 @@ build = params.genome_build.tokenize("_")[1]
 export PATH=\$PATH:${params.homer_dir}/bin/
 if [ ! -d "${params.homer_dir}/data" ]; then
   echo "${params.homer_dir}/data not found"
-  wget http://homer.ucsd.edu/homer/configureHomer.pl
-  mkdir -p ${params.homer_dir}
-  cp configureHomer.pl ${params.homer_dir}/.
+  mkdir -p ${params.homer_dir} && cd ${params.homer_dir}
+  wget http://homer.ucsd.edu/homer/configureHomer.pl 
   perl ${params.homer_dir}/configureHomer.pl -install
 fi
 if [ ! -d "${params.homer_dir}/data/genomes/${build}" ]; then
