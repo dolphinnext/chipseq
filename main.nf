@@ -3237,12 +3237,13 @@ when:
 run == "yes"
 
 script:
+build = params.genome_build.tokenize("_")[1]
 name = bed.baseName
 size = params.Homer_Find_Motif_Module_homer_find_Motifs_Genome.size
 """
 mkdir preparsed
 export PATH=\$PATH:${params.homer_dir}/bin/
-findMotifsGenome.pl $bed ${_build} homer_${name} -size $size -preparsedDir preparsed
+findMotifsGenome.pl $bed ${build} homer_${name} -size $size -preparsedDir preparsed
 """
 
 
