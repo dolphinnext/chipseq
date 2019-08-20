@@ -4,6 +4,9 @@ LABEL author="onur.yukselen@umassmed.edu" description="Docker image containing a
 COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
 # Install standard utilities 
+RUN apt-get update 
+RUN apt-get -y upgrade
+RUN apt-get dist-upgrade
 RUN apt-get -y install zip unzip gcc g++ make
 # Install dolphin-tools
 RUN mkdir /usr/local/bin/dolphin-tools 

@@ -136,7 +136,57 @@ If you prefer, you can specify the full path to your reference genome disable `-
 By default, the pipeline uses [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) to align the raw FastQ reads to the reference genome. 
 
 ## Peak Calling
-By default, peaks are detected by tool called [MACS2](https://github.com/taoliu/MACS). MACS2 can be easily used for ChIP-Seq data alone, or with control sample with the increase of specificity.
+By default, peaks are detected by tool called [MACS2](https://github.com/taoliu/MACS). MACS2 can be easily used for ChIP-Seq data alone, or with control sample with the increase of specificity. You need to enter sample names in array format as shown at below.
+
+```bash
+##Sample Definitions for example files: exper_rep1.fq, exper_rep2.fq, exper_rep3.fq, control_rep1.fq, control_rep2.fq, control_rep3.fq
+--ChIP_Module_ChIP_Prep.output_prefix [array] 
+# Output files/tables will be created by using this output_prefix. eg.["experiment","control"] 
+
+--ChIP_Module_ChIP_Prep.sample_prefix [array]
+# Use prefix of the sample to match files. You can use comma separated format to enter multiples files. eg.["exper_rep1,exper_rep2", "exper_rep3"]
+
+--ChIP_Module_ChIP_Prep.input_prefix [array] 
+# Use prefix of the input (control) to match files. You can use comma separated format to enter multiples files. eg.["control_rep1,control_rep2", "control_rep3"] 
+
+
+--ChIP_Module_ChIP_Prep.macs2_callpeak_parameters [string @default=""]
+# MACS2 callpeak parameters that found in their [documentation](https://github.com/taoliu/MACS)
+
+--ChIP_Module_ChIP_Prep.peak_calling_type [string @options:"narrow","broad" @default:"narrow"]    
+# MACS2 peak calling type
+
+--ChIP_Module_ChIP_Prep.band_width [integer  @default:300] 
+# Band width for picking regions to compute fragment size.
+
+--ChIP_Module_ChIP_Prep.compare_Custom_Bed [string @default:""]
+# Enter custom bed file <full path> for comparison
+
+
+```
+
+## Scripture_peakrescore:
+Optionally, you can enable scripture and trim the peaks to increase the statistical power of the subsequent analysis.
+
+```bash
+--run_Scripture [string @options:"yes","no" @default:"no"]  
+--ChIP_Module_Scripture_peakrescore.window [integer  @default:200]  
+--ChIP_Module_Scripture_peakrescore.trimFraction [fraction  @default:0.15] 
+```
+
+## Bedtools
+You can adjust bedtools coverage parameters for final count table. 
+
+--ChIP_Module_ChIP_Prep.bedtoolsCoverage_Parameters [string  @default:"-sorted -nobuf -hist"]  
+
+## Homer
+Optinally, detected peaks analyzed by HOMER. 
+
+```bash
+--Homer_Find_Motif_Module_homer_find_Motifs_Genome.size [integer  @default:200]  
+# Size of the region for motif finding findMotifsGenome.pl of [HOMER](http://homer.ucsd.edu/homer/motif/).  If you wish to find motifs using your peaks using their exact sizes, use the option "200").  However, for Transcription Factor peaks, most of the motifs are found +/- 50-75 bp from the peak center, making it better to use a fixed size rather than depend on your peak size.
+```
+
 
 ## Adapter Removal
 If specific Adapter Removal is required, you can enable trimmomatic and enter the adapter sequence. 
