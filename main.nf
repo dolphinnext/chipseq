@@ -2484,7 +2484,7 @@ mkdir bam
 picard MarkDuplicates OUTPUT=${name}_dedup.bam METRICS_FILE=${name}_picard_PCR_duplicates.log  VALIDATION_STRINGENCY=LENIENT REMOVE_DUPLICATES=false INPUT=${bam} > ${name}_picard.log 
 
 #get duplicates stats (read the sam flags)
-samtools flagstat ${name}_dedup.bam > ${name}@reads@${name}_duplicates_stats.log
+samtools flagstat ${name}_dedup.bam > ${name}@Reads@${name}_duplicates_stats.log
 #remove alignments marked as duplicates
 samtools view -b -F 0x400 ${name}_dedup.bam > ${name}_dedup.bam.x_dup
 #sort deduplicated files by chrom pos
@@ -3607,7 +3607,7 @@ my $ID_header;
 chomp(my $contents = `ls *.tsv`);
 my @rawFiles = split(/[\\n]+/, $contents);
 my @files = ();
-my @order = ("adapter_removal","trimmer","quality","extractUMI","sequential_mapping", "star", "rsem", "hisat2", "tophat2", "bowtie");
+my @order = ("adapter_removal","trimmer","quality","extractUMI","sequential_mapping", "star", "rsem", "hisat2", "tophat2", "bowtie", "dedup");
 for ( my $k = 0 ; $k <= $#order ; $k++ ) {
     for ( my $i = 0 ; $i <= $#rawFiles ; $i++ ) {
         if ( $rawFiles[$i] =~ /$order[$k]/ ) {
