@@ -1199,45 +1199,6 @@ fi
 
 }
 
-params.run_FastQC =  "no"  //* @dropdown @options:"yes","no"
-
-
-
-process Adapter_Trimmer_Quality_Module_FastQC {
-
-publishDir params.outdir, overwrite: true, mode: 'copy',
-	saveAs: {filename ->
-	if (filename =~ /.*.(html|zip)$/) "fastqc/$filename"
-}
-
-input:
- val mate from g_122_mate_g123_3
- set val(name), file(reads) from g_1_reads_g123_3
-
-output:
- file '*.{html,zip}'  into g123_3_FastQCout_g_79
-
-errorStrategy 'retry'
-maxRetries 3
-
-when:
-(params.run_FastQC && (params.run_FastQC == "yes"))
-
-script:
-nameAll = reads.toString()
-if (nameAll.contains('.gz')) {
-    file =  nameAll - '.gz' - '.gz'
-    runGzip = "ls *.gz | xargs -i echo gzip -df {} | sh"
-} else {
-    file =  nameAll 
-    runGzip = ''
-}
-"""
-${runGzip}
-fastqc ${file} 
-"""
-}
-
 
 process Check_and_Build_Module_STAR_Index_Check_Build {
 
@@ -1415,6 +1376,13 @@ g124_32_log_file_g124_30 = Channel.empty()
 
 
 process Sequential_Mapping_Module_Sequential_Mapping {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*\/.*_sorted.bam$/) "sequential_mapping/$filename"
+	else if (filename =~ /.*\/.*_sorted.bam.bai$/) "sequential_mapping/$filename"
+	else if (filename =~ /.*\/.*_duplicates_stats.log$/) "sequential_mapping/$filename"
+}
 
 input:
  set val(name), file(reads) from g123_20_reads_g124_32
@@ -1821,40 +1789,14 @@ mv ${name}_unique.bam bam/${name}.bam
 }
 
 
-//* autofill
-//* platform
-if ($HOSTNAME == "ghpcc06.umassrc.org"){
-    $TIME = 240
-    $CPU  = 1
-    $MEMORY = 10
-    $QUEUE = "short"
-}
-//* platform
-//* autofill
-
-process MultiQC {
-
-publishDir params.outdir, overwrite: true, mode: 'copy',
-	saveAs: {filename ->
-	if (filename =~ /multiqc_report.html$/) "multiQC/$filename"
-}
-
-input:
- file "fastqc/*" from g123_3_FastQCout_g_79.flatten().toList()
- file "sequential_mapping/*" from g124_32_bowfiles_g_79.flatten().toList()
- file "bowtie/*" from g127_13_bowfiles_g_79.flatten().toList()
-
-output:
- file "multiqc_report.html" optional true  into g_79_htmlout
-
-"""
-multiqc -e general_stats -d -dd 2 .
-"""
-}
-
 mappingListQuoteSep = mapList.collect{ '"' + it + '"'}.join(",") 
 rawIndexList = indexList.collect{ '"' + it + '"'}.join(",") 
 process Sequential_Mapping_Module_Sequential_Mapping_Dedup_Bam_count {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.counts.tsv$/) "sequential_mapping_counts/$filename"
+}
 
 input:
  file bam from g124_32_bam_file_g124_27.collect()
@@ -1964,6 +1906,11 @@ mappingListQuoteSep = mapList.collect{ '"' + it + '"'}.join(",")
 rawIndexList = indexList.collect{ '"' + it + '"'}.join(",") 
 process Sequential_Mapping_Module_Sequential_Mapping_Bam_count {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.counts.tsv$/) "sequential_mapping_counts/$filename"
+}
+
 input:
  file bam from g124_32_bam_file_g124_23.collect()
  file index from g124_32_bam_index_g124_23.collect()
@@ -2071,6 +2018,11 @@ sub makeBed {
 mappingListQuoteSep = mapList.collect{ '"' + it + '"'}.join(",") 
 rawIndexList = indexList.collect{ '"' + it + '"'}.join(",") 
 process Sequential_Mapping_Module_Deduplication_Summary {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /deduplication_summary.tsv$/) "sequential_mapping_summary/$filename"
+}
 
 input:
  file flagstat from g124_32_log_file_g124_30.collect()
@@ -2293,11 +2245,17 @@ awk 'FNR==1 && NR!=1 {  getline; } 1 {print} ' *.tsv > ${name}.tsv
 
 process Sequential_Mapping_Module_Sequential_Mapping_Short_Summary {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /sequential_mapping_short_sum.tsv$/) "sequential_mapping_summary/$filename"
+	else if (filename =~ /sequential_mapping_detailed_sum.tsv$/) "sequential_mapping_summary/$filename"
+}
+
 input:
  file mainSum from g124_13_outputFileTSV_g124_14
 
 output:
- file "sequential_mapping_short_sum.tsv"  into g124_14_outputFileTSV
+ file "sequential_mapping_short_sum.tsv"  into g124_14_outputFileTSV_g_115
  file "sequential_mapping_detailed_sum.tsv"  into g124_14_outputFile
 
 shell:
@@ -2483,123 +2441,6 @@ name = outputFileName[0]
 """    
 awk 'FNR==1 && NR!=1 {  getline; } 1 {print} ' *.tsv > ${name}.tsv
 """
-}
-
-g127_11_outputFileTSV_g_115= g127_11_outputFileTSV_g_115.ifEmpty(file('hisatSum', type: 'any')) 
-g123_11_outputFileTSV_g_115= g123_11_outputFileTSV_g_115.ifEmpty(file('adapterSum', type: 'any')) 
-g123_21_outputFileTSV_g_115= g123_21_outputFileTSV_g_115.ifEmpty(file('trimmerSum', type: 'any')) 
-g123_16_outputFileTSV_g_115= g123_16_outputFileTSV_g_115.ifEmpty(file('qualitySum', type: 'any')) 
-
-//* autofill
-//* platform
-if ($HOSTNAME == "ghpcc06.umassrc.org"){
-    $TIME = 30
-    $CPU  = 1
-    $MEMORY = 10
-    $QUEUE = "short"
-}
-//* platform
-//* autofill
-
-process Overall_Summary {
-
-publishDir params.outdir, overwrite: true, mode: 'copy',
-	saveAs: {filename ->
-	if (filename =~ /overall_summary.tsv$/) "summary/$filename"
-}
-
-input:
- file hisatSum from g127_11_outputFileTSV_g_115
- file adapterSum from g123_11_outputFileTSV_g_115
- file trimmerSum from g123_21_outputFileTSV_g_115
- file qualitySum from g123_16_outputFileTSV_g_115
-
-output:
- file "overall_summary.tsv"  into g_115_outputFileTSV
-
-shell:
-'''
-#!/usr/bin/env perl
-use List::Util qw[min max];
-use strict;
-use File::Basename;
-use Getopt::Long;
-use Pod::Usage;
-use Data::Dumper;
-
-my @header;
-my %all_rows;
-my @seen_cols;
-my $ID_header;
-
-chomp(my $contents = `ls *.tsv`);
-my @rawFiles = split(/[\\n]+/, $contents);
-my @files = ();
-my @order = ("adapter_removal","trimmer","quality","extractUMI","sequential_mapping", "star", "rsem", "hisat2", "tophat2", "bowtie");
-for ( my $k = 0 ; $k <= $#order ; $k++ ) {
-    for ( my $i = 0 ; $i <= $#rawFiles ; $i++ ) {
-        if ( $rawFiles[$i] =~ /$order[$k]/ ) {
-            push @files, $rawFiles[$i];
-        }
-    }
-}
-
-print Dumper \\@files;
-##add rest of the files
-for ( my $i = 0 ; $i <= $#rawFiles ; $i++ ) {
-    push(@files, $rawFiles[$i]) unless grep{$_ == $rawFiles[$i]} @files;
-}
-print Dumper \\@files;
-
-##Merge each file according to array order
-
-foreach my $file (@files){
-        open IN,"$file";
-        my $line1 = <IN>;
-        chomp($line1);
-        ( $ID_header, my @header) = ( split("\\t", $line1) );
-        push @seen_cols, @header;
-
-        while (my $line=<IN>) {
-        chomp($line);
-        my ( $ID, @fields ) = ( split("\\t", $line) ); 
-        my %this_row;
-        @this_row{@header} = @fields;
-
-        #print Dumper \\%this_row;
-
-        foreach my $column (@header) {
-            if (! exists $all_rows{$ID}{$column}) {
-                $all_rows{$ID}{$column} = $this_row{$column}; 
-            }
-        }   
-    }
-    close IN;
-}
-
-#print for debugging
-#print Dumper \\%all_rows;
-#print Dumper \\%seen_cols;
-
-#grab list of column headings we've seen, and order them. 
-my @cols_to_print = uniq(@seen_cols);
-my $summary = "overall_summary.tsv";
-open OUT, ">$summary";
-print OUT join ("\\t", $ID_header,@cols_to_print),"\\n";
-foreach my $key ( keys %all_rows ) { 
-    #map iterates all the columns, and gives the value or an empty string. if it's undefined. (prevents errors)
-    print OUT join ("\\t", $key, (map { $all_rows{$key}{$_} // '' } @cols_to_print)),"\\n";
-}
-close OUT;
-
-sub uniq {
-    my %seen;
-    grep ! $seen{$_}++, @_;
-}
-
-'''
-
-
 }
 
 
@@ -2818,11 +2659,16 @@ params.bed =  ""  //* @input
 
 process BAM_Analysis_Module_RSeQC {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /result\/.*.out$/) "rseqc/$filename"
+}
+
 input:
  set val(name), file(bam) from g128_22_mapped_reads_g126_122
 
 output:
- file "result/*.out"  into g126_122_outputFileOut_g126_95
+ file "result/*.out"  into g126_122_outputFileOut_g126_95, g126_122_outputFileOut_g_79
 
 when:
 (params.run_RSeQC && (params.run_RSeQC == "yes")) || !params.run_RSeQC
@@ -2836,6 +2682,11 @@ read_distribution.py  -i ${bam} -r ${params.bed}> result/RSeQC.${name}.out
 
 
 process BAM_Analysis_Module_RSeQC_Summary {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.tsv$/) "rseqc_summary/$filename"
+}
 
 input:
  file rseqcOut from g126_122_outputFileOut_g126_95.collect()
@@ -2988,6 +2839,12 @@ mkdir results && java -jar ${params.pdfbox_path} PDFMerger *.pdf results/${name}
 
 process BAM_Analysis_Module_Picard_Summary {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.tsv$/) "picard_summary/$filename"
+	else if (filename =~ /results\/.*.pdf$/) "picard/$filename"
+}
+
 input:
  file picardOut from g126_121_outputFileOut_g126_82.collect()
  val mate from g_122_mate_g126_82
@@ -3112,6 +2969,11 @@ if ($HOSTNAME == "ghpcc06.umassrc.org"){
 
 process BAM_Analysis_Module_UCSC_BAM2BigWig_converter {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.bw$/) "ucsc_bigwig/$filename"
+}
+
 input:
  set val(name), file(bam) from g128_22_mapped_reads_g126_124
 
@@ -3142,6 +3004,11 @@ igv_window_size = params.BAM_Analysis_Module_IGV_BAM2TDF_converter.igv_window_si
 params.genome =  ""  //* @input
 
 process BAM_Analysis_Module_IGV_BAM2TDF_converter {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.tdf$/) "igv_tdf/$filename"
+}
 
 input:
  val mate from g_122_mate_g126_123
@@ -3206,6 +3073,12 @@ mv ${bam} bam/${name}.bam
 
 process ChIP_Module_ChIP_MACS2 {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /bam\/.*.bam$/) "chip/$filename"
+	else if (filename =~ /${name}.*$/) "chip/$filename"
+}
+
 input:
  val mate from g_122_mate_g128_9
  file bam from g128_25_bam_file_g128_9.collect()
@@ -3215,7 +3088,7 @@ output:
  val compare_bed  into g128_9_compare_bed_g128_27
  file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g118_1
  set val(name), file("bam/*.bam")  into g128_9_bam_file_g128_10, g128_9_bam_file_g128_27
- file "${name}*"  into g128_9_resultsdir
+ file "${name}*"  into g128_9_resultsdir_g_79
  val name  into g128_9_name
 
 script:
@@ -3316,6 +3189,11 @@ java -cp ${params.peakrescore_path}:${params.peakrescore_class_path} peaks.PeakT
 
 process ChIP_Module_bed_merge {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /merged.bed$/) "chip/$filename"
+}
+
 input:
  file bed from g128_10_bed_g128_26.collect()
 
@@ -3410,9 +3288,86 @@ foreach my $d (@alndirs){
 '''
 }
 
+params.run_FastQC =  "no"  //* @dropdown @options:"yes","no"
+
+
+
+process Adapter_Trimmer_Quality_Module_FastQC {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.(html|zip)$/) "fastqc/$filename"
+}
+
+input:
+ val mate from g_122_mate_g123_3
+ set val(name), file(reads) from g_1_reads_g123_3
+
+output:
+ file '*.{html,zip}'  into g123_3_FastQCout_g_79
+
+errorStrategy 'retry'
+maxRetries 3
+
+when:
+(params.run_FastQC && (params.run_FastQC == "yes"))
+
+script:
+nameAll = reads.toString()
+if (nameAll.contains('.gz')) {
+    file =  nameAll - '.gz' - '.gz'
+    runGzip = "ls *.gz | xargs -i echo gzip -df {} | sh"
+} else {
+    file =  nameAll 
+    runGzip = ''
+}
+"""
+${runGzip}
+fastqc ${file} 
+"""
+}
+
+//* autofill
+//* platform
+if ($HOSTNAME == "ghpcc06.umassrc.org"){
+    $TIME = 240
+    $CPU  = 1
+    $MEMORY = 10
+    $QUEUE = "short"
+}
+//* platform
+//* autofill
+
+process MultiQC {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /multiqc_report.html$/) "multiQC/$filename"
+}
+
+input:
+ file "fastqc/*" from g123_3_FastQCout_g_79.flatten().toList()
+ file "sequential_mapping/*" from g124_32_bowfiles_g_79.flatten().toList()
+ file "rseqc_hisat/*" from g126_122_outputFileOut_g_79.flatten().toList()
+ file "macs/*" from g128_9_resultsdir_g_79.flatten().toList()
+ file "bowtie/*" from g127_13_bowfiles_g_79.flatten().toList()
+
+output:
+ file "multiqc_report.html" optional true  into g_79_htmlout
+
+"""
+multiqc -e general_stats -d -dd 2 .
+"""
+}
+
 
 
 process ChIP_Module_bedtools_coverage {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.sum.txt$/) "chip/$filename"
+}
 
 input:
  val compare_bed from g128_9_compare_bed_g128_27
@@ -3449,6 +3404,11 @@ fi
 
 
 process ChIP_Module_ATAC_CHIP_summary {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /.*.tsv$/) "chip_summary/$filename"
+}
 
 input:
  file file from g128_27_outputFileTxt_g128_13.collect()
@@ -3511,12 +3471,17 @@ mappingListQuoteSep = mapList.collect{ '"' + it + '"'}.join(",")
 rawIndexList = indexList.collect{ '"' + it + '"'}.join(",") 
 process ChIP_Module_Deduplication_Summary {
 
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /deduplication_summary.tsv$/) "picard_deduplication/$filename"
+}
+
 input:
  file flagstat from g128_22_log_file_g128_23.collect()
  val mate from g_122_mate_g128_23
 
 output:
- file "deduplication_summary.tsv"  into g128_23_outputFileTSV
+ file "deduplication_summary.tsv"  into g128_23_outputFileTSV_g_115
 
 shell:
 '''
@@ -3588,6 +3553,127 @@ foreach my $name (keys %tsv){
 }
 close(OUT);
 '''
+}
+
+g124_14_outputFileTSV_g_115= g124_14_outputFileTSV_g_115.ifEmpty(file('sequentialSum', type: 'any')) 
+g127_11_outputFileTSV_g_115= g127_11_outputFileTSV_g_115.ifEmpty(file('hisatSum', type: 'any')) 
+g123_11_outputFileTSV_g_115= g123_11_outputFileTSV_g_115.ifEmpty(file('adapterSum', type: 'any')) 
+g123_21_outputFileTSV_g_115= g123_21_outputFileTSV_g_115.ifEmpty(file('trimmerSum', type: 'any')) 
+g123_16_outputFileTSV_g_115= g123_16_outputFileTSV_g_115.ifEmpty(file('qualitySum', type: 'any')) 
+g128_23_outputFileTSV_g_115= g128_23_outputFileTSV_g_115.ifEmpty(file('umiSum', type: 'any')) 
+
+//* autofill
+//* platform
+if ($HOSTNAME == "ghpcc06.umassrc.org"){
+    $TIME = 30
+    $CPU  = 1
+    $MEMORY = 10
+    $QUEUE = "short"
+}
+//* platform
+//* autofill
+
+process Overall_Summary {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /overall_summary.tsv$/) "summary/$filename"
+}
+
+input:
+ file sequentialSum from g124_14_outputFileTSV_g_115
+ file hisatSum from g127_11_outputFileTSV_g_115
+ file adapterSum from g123_11_outputFileTSV_g_115
+ file trimmerSum from g123_21_outputFileTSV_g_115
+ file qualitySum from g123_16_outputFileTSV_g_115
+ file umiSum from g128_23_outputFileTSV_g_115
+
+output:
+ file "overall_summary.tsv"  into g_115_outputFileTSV
+
+shell:
+'''
+#!/usr/bin/env perl
+use List::Util qw[min max];
+use strict;
+use File::Basename;
+use Getopt::Long;
+use Pod::Usage;
+use Data::Dumper;
+
+my @header;
+my %all_rows;
+my @seen_cols;
+my $ID_header;
+
+chomp(my $contents = `ls *.tsv`);
+my @rawFiles = split(/[\\n]+/, $contents);
+my @files = ();
+my @order = ("adapter_removal","trimmer","quality","extractUMI","sequential_mapping", "star", "rsem", "hisat2", "tophat2", "bowtie");
+for ( my $k = 0 ; $k <= $#order ; $k++ ) {
+    for ( my $i = 0 ; $i <= $#rawFiles ; $i++ ) {
+        if ( $rawFiles[$i] =~ /$order[$k]/ ) {
+            push @files, $rawFiles[$i];
+        }
+    }
+}
+
+print Dumper \\@files;
+##add rest of the files
+for ( my $i = 0 ; $i <= $#rawFiles ; $i++ ) {
+    push(@files, $rawFiles[$i]) unless grep{$_ == $rawFiles[$i]} @files;
+}
+print Dumper \\@files;
+
+##Merge each file according to array order
+
+foreach my $file (@files){
+        open IN,"$file";
+        my $line1 = <IN>;
+        chomp($line1);
+        ( $ID_header, my @header) = ( split("\\t", $line1) );
+        push @seen_cols, @header;
+
+        while (my $line=<IN>) {
+        chomp($line);
+        my ( $ID, @fields ) = ( split("\\t", $line) ); 
+        my %this_row;
+        @this_row{@header} = @fields;
+
+        #print Dumper \\%this_row;
+
+        foreach my $column (@header) {
+            if (! exists $all_rows{$ID}{$column}) {
+                $all_rows{$ID}{$column} = $this_row{$column}; 
+            }
+        }   
+    }
+    close IN;
+}
+
+#print for debugging
+#print Dumper \\%all_rows;
+#print Dumper \\%seen_cols;
+
+#grab list of column headings we've seen, and order them. 
+my @cols_to_print = uniq(@seen_cols);
+my $summary = "overall_summary.tsv";
+open OUT, ">$summary";
+print OUT join ("\\t", $ID_header,@cols_to_print),"\\n";
+foreach my $key ( keys %all_rows ) { 
+    #map iterates all the columns, and gives the value or an empty string. if it's undefined. (prevents errors)
+    print OUT join ("\\t", $key, (map { $all_rows{$key}{$_} // '' } @cols_to_print)),"\\n";
+}
+close OUT;
+
+sub uniq {
+    my %seen;
+    grep ! $seen{$_}++, @_;
+}
+
+'''
+
+
 }
 
 

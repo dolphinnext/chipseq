@@ -1,4 +1,4 @@
-[![Travis-ci tests:](https://travis-ci.org/dolphinnext/chipseq.svg?branch=master)](https://travis-ci.org/dolphinnext/chipseq)
+[![Travis-ci tests:](https://travis-ci.org/onuryukselen/chipseq.svg?branch=master)](https://travis-ci.org/onuryukselen/chipseq)
 
 ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Samtools, calls ChIP peaks with MACS2 and finally creates count table for analysis.  Additionally these peaks analyzed by Motif Finder module (HOMER).
 
