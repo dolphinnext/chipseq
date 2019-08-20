@@ -2473,7 +2473,7 @@ input:
 output:
  set val(name), file("bam/${name}.bam")  into g128_22_mapped_reads_g128_25, g128_22_mapped_reads_g126_121, g128_22_mapped_reads_g126_122, g128_22_mapped_reads_g126_123, g128_22_mapped_reads_g126_124, g128_22_mapped_reads_g126_126
  set val(name), file("${name}*")  into g128_22_publish
- file "${name}_duplicates_stats.log"  into g128_22_log_file_g128_23
+ file "*_duplicates_stats.log"  into g128_22_log_file_g128_23
 
 when:
 (params.run_Remove_Multimappers_with_Picard && (params.run_Remove_Multimappers_with_Picard == "yes")) || !params.run_Remove_Multimappers_with_Picard     
@@ -3034,6 +3034,19 @@ igvtools count -w ${igv_window_size} -e ${igv_extention_factor} ${pairedText} ${
 """
 }
 
+macs2_callpeak_parameters = params.ChIP_Module_ChIP_Prep.macs2_callpeak_parameters
+peak_calling_type = params.ChIP_Module_ChIP_Prep.peak_calling_type
+band_width = params.ChIP_Module_ChIP_Prep.band_width
+bedtoolsCoverage_Parameters = params.ChIP_Module_ChIP_Prep.bedtoolsCoverage_Parameters
+compare_Custom_Bed = params.ChIP_Module_ChIP_Prep.compare_Custom_Bed
+output_prefix = params.ChIP_Module_ChIP_Prep.output_prefix
+sample_prefix = params.ChIP_Module_ChIP_Prep.sample_prefix
+input_prefix = params.ChIP_Module_ChIP_Prep.input_prefix
+//* @array:{output_prefix,sample_prefix,input_prefix} @multicolumn:{output_prefix,sample_prefix,input_prefix},{macs2_callpeak_parameters,peak_calling_type,band_width,bedtoolsCoverage_Parameters}
+samplehash = [:]
+inputhash = [:]
+output_prefix.eachWithIndex { key, i -> inputhash[key] = input_prefix[i] }
+output_prefix.eachWithIndex { key, i -> samplehash[key] = sample_prefix[i] }
 
 process ChIP_Module_ChIP_Prep {
 
@@ -3049,25 +3062,10 @@ when:
 (params.run_ChIP_MACS2 && (params.run_ChIP_MACS2 == "yes")) || !params.run_ChIP_MACS2
 
 script:
-macs2_callpeak_parameters = params.ChIP_Module_ChIP_Prep.macs2_callpeak_parameters
-peak_calling_type = params.ChIP_Module_ChIP_Prep.peak_calling_type
-band_width = params.ChIP_Module_ChIP_Prep.band_width
-bedtoolsCoverage_Parameters = params.ChIP_Module_ChIP_Prep.bedtoolsCoverage_Parameters
-compare_Custom_Bed = params.ChIP_Module_ChIP_Prep.compare_Custom_Bed
-output_prefix = params.ChIP_Module_ChIP_Prep.output_prefix
-sample_prefix = params.ChIP_Module_ChIP_Prep.sample_prefix
-input_prefix = params.ChIP_Module_ChIP_Prep.input_prefix
-//* @array:{output_prefix,sample_prefix,input_prefix} @multicolumn:{output_prefix,sample_prefix,input_prefix},{macs2_callpeak_parameters,peak_calling_type,band_width,bedtoolsCoverage_Parameters}
-samplehash = [:]
-inputhash = [:]
-output_prefix.eachWithIndex { key, i -> inputhash[key] = input_prefix[i] }
-output_prefix.eachWithIndex { key, i -> samplehash[key] = sample_prefix[i] }
-    
 """
 mkdir -p bam
 mv ${bam} bam/${name}.bam
 """
-
 }
 
 
@@ -3093,9 +3091,9 @@ output:
 
 script:
 genomeSizeText = ""
-if (_build == "mm10"){
+if (params.genome_build.contains("mouse")){
     genomeSizeText = "-g mm"
-} else if (_build == "hg19"){
+} else if (params.genome_build.contains("human")){
     genomeSizeText = "-g hs"
 }
 
