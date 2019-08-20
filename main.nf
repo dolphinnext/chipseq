@@ -3243,6 +3243,7 @@ size = params.Homer_Find_Motif_Module_homer_find_Motifs_Genome.size
 """
 mkdir preparsed
 export PATH=\$PATH:${params.homer_dir}/bin/
+ls ${params.homer_dir}/bin/*
 findMotifsGenome.pl $bed ${build} homer_${name} -size $size -preparsedDir preparsed
 """
 
