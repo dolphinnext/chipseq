@@ -3,7 +3,7 @@ LABEL author="onur.yukselen@umassmed.edu" description="Docker image containing a
 
 COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
-# Install standard utilities for HOMER
+# Install standard utilities for HOMERv4.10
 RUN apt-get clean all
 RUN apt-get update
 RUN apt-get dist-upgrade -y

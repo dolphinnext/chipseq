@@ -42,6 +42,7 @@ There are three fields need to be entered: output-prefix, sample-prefix, and inp
   - Ucsc-wigToBigWig v366
   - Pdfbox-App v2.0.0
   - Scripture v0.1
+  - HOMER v4.10
  
 
 #### Run through DolphinNext User Interface:

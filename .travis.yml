@@ -26,7 +26,7 @@ install:
   # Reset
   - mkdir ${TRAVIS_BUILD_DIR}/tests && cd ${TRAVIS_BUILD_DIR}/tests
   # Download sample files
-  - mkdir inputs && cd inputs && wget https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/control_rep1.1.fastq.gz https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/exper_rep1.1.fastq.gz  && cd ..
+  - mkdir inputs && cd inputs && wget https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/control_rep1_sm.fastq.gz https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/exper_rep1_sm.fastq.gz  && cd ..
   # Install markdownlint-cli
   - sudo apt-get install npm && npm install -g markdownlint-cli
   
