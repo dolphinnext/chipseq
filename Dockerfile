@@ -5,7 +5,7 @@ COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
 # Install standard utilities for HOMER
 
-RUN  apt-get clean all && apt-get update && apt-get dist-upgrade
+RUN apt-get clean all && apt-get update && apt-get dist-upgrade
 RUN apt-get -y install zip unzip gcc g++ make && apt-get autoremove
 # Install dolphin-tools
 RUN git clone https://github.com/UMMS-Biocore/tools /usr/local/bin/dolphin-tools
