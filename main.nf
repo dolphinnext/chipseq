@@ -17,7 +17,7 @@ Channel
 	.ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
 	.into{g_1_reads_g123_3;g_1_reads_g123_18}
 
-Channel.value(params.run_Motif_Finder_on_ChIP_Peaks).set{g_119_run_Homer_g133_0}
+Channel.value(params.run_Motif_Finder_on_ChIP_Peaks).set{g_119_run_Homer_g134_7}
 Channel.value(params.mate).into{g_122_mate_g_68;g_122_mate_g123_3;g_122_mate_g123_11;g_122_mate_g123_16;g_122_mate_g123_18;g_122_mate_g123_19;g_122_mate_g123_20;g_122_mate_g123_21;g_122_mate_g124_26;g_122_mate_g124_30;g_122_mate_g124_32;g_122_mate_g127_10;g_122_mate_g127_13;g_122_mate_g128_9;g_122_mate_g128_23;g_122_mate_g128_25;g_122_mate_g126_82;g_122_mate_g126_95;g_122_mate_g126_123;g_122_mate_g126_126}
 g_129_genome_url_g125_15 = file(params.genome_url, type: 'any') 
 g_130_gtf_url_g125_15 = file(params.gtf_url, type: 'any') 
@@ -3064,7 +3064,7 @@ input:
 
 output:
  val compare_bed  into g128_9_compare_bed_g128_27
- file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g133_1
+ file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g134_1
  set val(name), file("bam/*.bam")  into g128_9_bam_file_g128_10, g128_9_bam_file_g128_27
  file "${name}*"  into g128_9_resultsdir_g_79
  val name  into g128_9_name
@@ -3185,32 +3185,27 @@ output:
 }
 
 params.homer_dir =  ""  //* @input
+params.configureHomer_path =  ""  //* @input
 
 process Homer_Find_Motif_Module_homer_download_install {
 
 input:
- val run from g_119_run_Homer_g133_0
+ val run from g_119_run_Homer_g134_7
 
 output:
- val run  into g133_0_run_process_g133_1
+ val run  into g134_7_run_process_g134_1
 
 when:
 run == "yes"
 
 script:
 build = params.genome_build.tokenize("_")[1]
-configureHomer_cmd = "" 
-if (params.configureHomer_path){
-    configureHomer_cmd = "cp ${params.configureHomer_path} ${params.homer_dir}/. 2>/dev/null"    
-} else {
-    configureHomer_cmd = "wget http://homer.ucsd.edu/homer/configureHomer.pl"
-}
 """
 export PATH=\$PATH:${params.homer_dir}/bin/
 if [ ! -d "${params.homer_dir}/data" ]; then
   echo "${params.homer_dir}/data not found"
   mkdir -p ${params.homer_dir} && cd ${params.homer_dir}
-  ${configureHomer_cmd} 
+  cp ${params.configureHomer_path} ${params.homer_dir}/. 2>/dev/null
   perl ${params.homer_dir}/configureHomer.pl -install
 fi
 if [ ! -d "${params.homer_dir}/data/genomes/${build}" ]; then
@@ -3232,11 +3227,11 @@ publishDir params.outdir, overwrite: true, mode: 'copy',
 }
 
 input:
- file bed from g128_9_bed_g133_1
- val run from g133_0_run_process_g133_1
+ file bed from g128_9_bed_g134_1
+ val run from g134_7_run_process_g134_1
 
 output:
- file "homer_${name}"  into g133_1_resultsdir_g133_5
+ file "homer_${name}"  into g134_1_resultsdir_g134_5
 
 when:
 run == "yes"
@@ -3265,10 +3260,10 @@ publishDir params.outdir, overwrite: true, mode: 'copy',
 }
 
 input:
- file dir from g133_1_resultsdir_g133_5.collect()
+ file dir from g134_1_resultsdir_g134_5.collect()
 
 output:
- file "homerReport*"  into g133_5_resultsdir
+ file "homerReport*"  into g134_5_resultsdir
 
 shell:
 '''
