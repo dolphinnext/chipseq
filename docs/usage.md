@@ -37,7 +37,7 @@ results         # Finished results
 When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version. In order to download latest version of the pipeline you need to run following command:
 
 ```bash
-nextflow pull dolpinnext/rnaseq
+nextflow pull dolpinnext/chipseq
 ```
 
 ## Main arguments
