@@ -2,6 +2,7 @@ sudo: required
 language: python
 jdk: openjdk8
 services: docker
+install: travis_wait mvn install
 python: '3.6'
 cache: pip
 matrix:
@@ -16,6 +17,8 @@ before_install:
   - docker tag dolphinnext/chipatacseq:dev dolphinnext/chipatacseq:1.0
 
 install:
+  # Wait for maximum 20 min. for each process
+  - travis_wait mvn 30 install
   # Install Nextflow
   - mkdir /tmp/nextflow && cd /tmp/nextflow
   - wget -qO- get.nextflow.io | bash
