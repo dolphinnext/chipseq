@@ -3199,12 +3199,18 @@ run == "yes"
 
 script:
 build = params.genome_build.tokenize("_")[1]
+configureHomer_cmd = "" 
+if (params.configureHomer_path){
+    configureHomer_cmd = "cp ${params.configureHomer_path} ${params.homer_dir}/. 2>/dev/null"    
+} else {
+    configureHomer_cmd = "wget http://homer.ucsd.edu/homer/configureHomer.pl"
+}
 """
 export PATH=\$PATH:${params.homer_dir}/bin/
 if [ ! -d "${params.homer_dir}/data" ]; then
   echo "${params.homer_dir}/data not found"
   mkdir -p ${params.homer_dir} && cd ${params.homer_dir}
-  wget http://homer.ucsd.edu/homer/configureHomer.pl 
+  ${configureHomer_cmd} 
   perl ${params.homer_dir}/configureHomer.pl -install
 fi
 if [ ! -d "${params.homer_dir}/data/genomes/${build}" ]; then
@@ -3239,11 +3245,12 @@ script:
 build = params.genome_build.tokenize("_")[1]
 name = bed.baseName
 size = params.Homer_Find_Motif_Module_homer_find_Motifs_Genome.size
+findMotifsGenome_parameters = params.Homer_Find_Motif_Module_homer_find_Motifs_Genome.findMotifsGenome_parameters
 """
 mkdir preparsed
 export PATH=\$PATH:${params.homer_dir}/bin/
 ls ${params.homer_dir}/bin/*
-findMotifsGenome.pl $bed ${build} homer_${name} -size $size -preparsedDir preparsed
+findMotifsGenome.pl  $bed ${build} homer_${name} -size $size -preparsedDir preparsed ${findMotifsGenome_parameters}
 """
 
 
