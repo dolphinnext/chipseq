@@ -17,8 +17,6 @@ before_install:
   - docker tag dolphinnext/chipatacseq:dev dolphinnext/chipatacseq:1.0
 
 install:
-  # Wait for maximum 20 min. for each process
-  - travis_wait mvn 30 install
   # Install Nextflow
   - mkdir /tmp/nextflow && cd /tmp/nextflow
   - wget -qO- get.nextflow.io | bash
