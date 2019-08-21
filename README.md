@@ -1,4 +1,4 @@
-[![Travis-ci tests:](https://travis-ci.org/onuryukselen/chipseq.svg?branch=master)](https://travis-ci.org/onuryukselen/chipseq)
+[![Travis-ci tests:](https://travis-ci.org/dolphinnext/chipseq.svg?branch=master)](https://travis-ci.org/dolphinnext/chipseq) [![DOI:10.1101/689539](https://zenodo.org/badge/DOI/10.1101/689539.svg)](https://doi.org/10.1101/689539)
 
 ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Samtools, calls ChIP peaks with MACS2 and finally creates count table for analysis.  Additionally these peaks analyzed by Motif Finder module (HOMER).
 
@@ -17,7 +17,7 @@ ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Sam
   - Reads
   - ChIP-prep section
 
-There are three fields need to be entered: output-prefix, sample-prefix, and input-prefix. Please use sample names to fill this form.For instance, to enter following files control-rep1.fastq.gz, exper-rep1.fastq.gz,  as the following.
+There are three fields need to be entered: output-prefix, sample-prefix, and input-prefix. Please use sample names to fill this form.For instance, to enter following files control-rep1.fastq.gz, exper-rep1.fastq.gz, use the table at below.
 
     | output-prefix | sample-prefix | input-prefix |
     |---------------|---------------|--------------|
