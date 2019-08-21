@@ -4,6 +4,9 @@ LABEL author="onur.yukselen@umassmed.edu" description="Docker image containing a
 COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
 # Install standard utilities for HOMER
+RUN apt-get clean all
+RUN apt-get update
+RUN apt-get dist-upgrade -y
 RUN apt-get -y install zip unzip gcc g++ make
 # Install dolphin-tools
 RUN git clone https://github.com/UMMS-Biocore/tools /usr/local/bin/dolphin-tools
