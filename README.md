@@ -17,7 +17,7 @@ ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Sam
   - Reads
   - ChIP-prep section
 
-There are three fields need to be entered: output-prefix, sample-prefix, and input-prefix. Please use sample names to fill this form.For instance, to enter following files control-rep1.fastq.gz, exper-rep1.fastq.gz,  as the following.
+There are three fields need to be entered: output-prefix, sample-prefix, and input-prefix. Please use sample names to fill this form.For instance, to enter following files control-rep1.fastq.gz, exper-rep1.fastq.gz, use the table at below.
 
     | output-prefix | sample-prefix | input-prefix |
     |---------------|---------------|--------------|
