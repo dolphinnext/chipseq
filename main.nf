@@ -17,43 +17,11 @@ Channel
 	.ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
 	.into{g_1_reads_g123_3;g_1_reads_g123_18}
 
-Channel.value(params.run_Motif_Finder_on_ChIP_Peaks).set{g_119_run_Homer_g118_0}
+Channel.value(params.run_Motif_Finder_on_ChIP_Peaks).set{g_119_run_Homer_g133_0}
 Channel.value(params.mate).into{g_122_mate_g_68;g_122_mate_g123_3;g_122_mate_g123_11;g_122_mate_g123_16;g_122_mate_g123_18;g_122_mate_g123_19;g_122_mate_g123_20;g_122_mate_g123_21;g_122_mate_g124_26;g_122_mate_g124_30;g_122_mate_g124_32;g_122_mate_g127_10;g_122_mate_g127_13;g_122_mate_g128_9;g_122_mate_g128_23;g_122_mate_g128_25;g_122_mate_g126_82;g_122_mate_g126_95;g_122_mate_g126_123;g_122_mate_g126_126}
 g_129_genome_url_g125_15 = file(params.genome_url, type: 'any') 
 g_130_gtf_url_g125_15 = file(params.gtf_url, type: 'any') 
 Channel.value(params.commondb_url).set{g_131_commondb_url_g125_15}
-
-params.homer_dir =  ""  //* @input
-
-process Homer_Find_Motif_Module_homer_download_install {
-
-input:
- val run from g_119_run_Homer_g118_0
-
-output:
- val run  into g118_0_run_process_g118_1
-
-when:
-run == "yes"
-
-script:
-"""
-export PATH=\$PATH:${params.homer_dir}/bin/
-if [ ! -d "${params.homer_dir}/data" ]; then
-  echo "${params.homer_dir}/data not found"
-  wget http://homer.ucsd.edu/homer/configureHomer.pl
-  mkdir -p ${params.homer_dir}
-  cp configureHomer.pl ${params.homer_dir}/.
-  perl ${params.homer_dir}/configureHomer.pl -install
-fi
-if [ ! -d "${params.homer_dir}/data/genomes/${_build}" ]; then
-  echo "${_build} will be installed"
-  perl ${params.homer_dir}/configureHomer.pl -install ${_build}
-fi
-
-"""
-
-}
 
 params.run_Adapter_Removal =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Adapter_Removal"
 //* @style @multicolumn:{seed_mismatches, palindrome_clip_threshold, simple_clip_threshold} @condition:{Tool_for_Adapter_Removal="trimmomatic", seed_mismatches, palindrome_clip_threshold, simple_clip_threshold}, {Tool_for_Adapter_Removal="fastx_clipper", discard_non_clipped}
@@ -1559,6 +1527,9 @@ if [ -n "${mappingList}" ]; then
                 echo "INFO: samtools sort -o \${rna_set}@${name}_sorted.dedup.bam \${rna_set}@${name}_sorted.deumi.sorted.bam.x_dup"
                 samtools sort -o \${rna_set}@${name}_sorted.dedup.bam \${rna_set}@${name}_sorted.deumi.sorted.bam.x_dup 
                 samtools index \${rna_set}@${name}_sorted.dedup.bam
+                #get flagstat after dedup
+                echo "##After Deduplication##" >> \${k2}@\${rna_set}@${name}_duplicates_stats.log
+                samtools flagstat \${rna_set}@${name}_sorted.dedup.bam >> \${k2}@\${rna_set}@${name}_duplicates_stats.log
             fi
             
         
@@ -2058,17 +2029,21 @@ foreach my $file (@files){
     my $name = $3; ##sample name
     push(@header, $mapper) unless grep{$_ eq $mapper} @header; 
         
-    my $duplicates;
+    # my $duplicates;
     my $aligned;
-    my $dedup;
+    my $dedup; #aligned reads after dedup
     my $percent=0;
     if ("!{mate}" eq "pair" ){
-        chomp($aligned = `cat $file | grep 'properly paired (' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        #first flagstat belongs to first bam file
+        chomp($aligned = `cat $file | grep 'properly paired (' | sed -n 1p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        #second flagstat belongs to dedup bam file
+        chomp($dedup = `cat $file | grep 'properly paired (' | sed -n 2p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
     } else {
-        chomp($aligned = `cat $file | grep 'mapped (' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        chomp($aligned = `cat $file | grep 'mapped (' | sed -n 1p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        chomp($dedup = `cat $file | grep 'mapped (' | sed -n 2p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
     }
-    chomp($duplicates = `cat $file | grep 'duplicates' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
-    $dedup = int($aligned) - int($duplicates);
+    # chomp($duplicates = `cat $file | grep 'duplicates' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+    # $dedup = int($aligned) - int($duplicates);
     if ("!{mate}" eq "pair" ){
        $dedup = int($dedup/2);
        $aligned = int($aligned/2);
@@ -2494,8 +2469,9 @@ samtools view -b -F 0x400 ${name}_dedup.bam > ${name}_dedup.bam.x_dup
 #sort deduplicated files by chrom pos
 samtools sort -o ${name}_sorted.dedup.bam ${name}_dedup.bam.x_dup 
 mv ${name}_sorted.dedup.bam bam/${name}.bam
-
-
+#get properly paired log stats after dedup
+echo "##After Deduplication##" >> ${name}@Reads@${name}_duplicates_stats.log
+samtools flagstat bam/${name}.bam >> ${name}@Reads@${name}_duplicates_stats.log
 """
 }
 }
@@ -3088,7 +3064,7 @@ input:
 
 output:
  val compare_bed  into g128_9_compare_bed_g128_27
- file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g118_1
+ file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g133_1
  set val(name), file("bam/*.bam")  into g128_9_bam_file_g128_10, g128_9_bam_file_g128_27
  file "${name}*"  into g128_9_resultsdir_g_79
  val name  into g128_9_name
@@ -3210,6 +3186,38 @@ output:
 
 params.homer_dir =  ""  //* @input
 
+process Homer_Find_Motif_Module_homer_download_install {
+
+input:
+ val run from g_119_run_Homer_g133_0
+
+output:
+ val run  into g133_0_run_process_g133_1
+
+when:
+run == "yes"
+
+script:
+build = params.genome_build.tokenize("_")[1]
+"""
+export PATH=\$PATH:${params.homer_dir}/bin/
+if [ ! -d "${params.homer_dir}/data" ]; then
+  echo "${params.homer_dir}/data not found"
+  mkdir -p ${params.homer_dir} && cd ${params.homer_dir}
+  wget http://homer.ucsd.edu/homer/configureHomer.pl 
+  perl ${params.homer_dir}/configureHomer.pl -install
+fi
+if [ ! -d "${params.homer_dir}/data/genomes/${build}" ]; then
+  echo "${build} will be installed"
+  perl ${params.homer_dir}/configureHomer.pl -install ${build}
+fi
+
+"""
+
+}
+
+params.homer_dir =  ""  //* @input
+
 process Homer_Find_Motif_Module_homer_find_Motifs_Genome {
 
 publishDir params.outdir, overwrite: true, mode: 'copy',
@@ -3218,22 +3226,24 @@ publishDir params.outdir, overwrite: true, mode: 'copy',
 }
 
 input:
- file bed from g128_9_bed_g118_1
- val run from g118_0_run_process_g118_1
+ file bed from g128_9_bed_g133_1
+ val run from g133_0_run_process_g133_1
 
 output:
- file "homer_${name}"  into g118_1_resultsdir_g118_5
+ file "homer_${name}"  into g133_1_resultsdir_g133_5
 
 when:
 run == "yes"
 
 script:
+build = params.genome_build.tokenize("_")[1]
 name = bed.baseName
 size = params.Homer_Find_Motif_Module_homer_find_Motifs_Genome.size
 """
 mkdir preparsed
 export PATH=\$PATH:${params.homer_dir}/bin/
-findMotifsGenome.pl $bed ${_build} homer_${name} -size $size -preparsedDir preparsed
+ls ${params.homer_dir}/bin/*
+findMotifsGenome.pl $bed ${build} homer_${name} -size $size -preparsedDir preparsed
 """
 
 
@@ -3248,10 +3258,10 @@ publishDir params.outdir, overwrite: true, mode: 'copy',
 }
 
 input:
- file dir from g118_1_resultsdir_g118_5.collect()
+ file dir from g133_1_resultsdir_g133_5.collect()
 
 output:
- file "homerReport*"  into g118_5_resultsdir
+ file "homerReport*"  into g133_5_resultsdir
 
 shell:
 '''
@@ -3512,17 +3522,21 @@ foreach my $file (@files){
     my $name = $3; ##sample name
     push(@header, $mapper) unless grep{$_ eq $mapper} @header; 
         
-    my $duplicates;
+    # my $duplicates;
     my $aligned;
-    my $dedup;
+    my $dedup; #aligned reads after dedup
     my $percent=0;
     if ("!{mate}" eq "pair" ){
-        chomp($aligned = `cat $file | grep 'properly paired (' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        #first flagstat belongs to first bam file
+        chomp($aligned = `cat $file | grep 'properly paired (' | sed -n 1p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        #second flagstat belongs to dedup bam file
+        chomp($dedup = `cat $file | grep 'properly paired (' | sed -n 2p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
     } else {
-        chomp($aligned = `cat $file | grep 'mapped (' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        chomp($aligned = `cat $file | grep 'mapped (' | sed -n 1p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+        chomp($dedup = `cat $file | grep 'mapped (' | sed -n 2p | awk '{sum+=\\$1+\\$3} END {print sum}'`);
     }
-    chomp($duplicates = `cat $file | grep 'duplicates' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
-    $dedup = int($aligned) - int($duplicates);
+    # chomp($duplicates = `cat $file | grep 'duplicates' | awk '{sum+=\\$1+\\$3} END {print sum}'`);
+    # $dedup = int($aligned) - int($duplicates);
     if ("!{mate}" eq "pair" ){
        $dedup = int($dedup/2);
        $aligned = int($aligned/2);
