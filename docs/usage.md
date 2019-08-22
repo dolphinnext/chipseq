@@ -125,7 +125,7 @@ If you prefer, you can specify the full path to your reference genome disable `-
 --genome_sizes '[path to genome_sizes file]' \
 --gtf '[path to GTF file]' \
 --bed '[path to bed12 file]' \
---commondb '[path to commondb directory when Bowtie/Bowtie2 indexes found for common RNA's (eg. rRNA, miRNA, tRNA, etc.)] \
+--commondb '[path to commondb directory when Bowtie/Bowtie2 indexes found for common reads (eg. ercc, rmsk etc.)] \
 
 --star_index '[path to STAR index]' \
 --bowtie_index '[path to Bowtie index]' \
@@ -268,21 +268,21 @@ To use fastx_toolkit  :
 ```
 
 ## Sequential Mapping
-Optianally,Bowtie2/Bowtie/STAR is used to count or filter out common RNAs reads (eg. rRNA, miRNA, tRNA, piRNA etc.). You need to specify mapping set by entering following paramters in array format.
+Optianally,Bowtie2/Bowtie/STAR is used to count or filter out common reads (eg. rmsk, ercc etc.). You need to specify mapping set by entering following paramters in array format.
 
 ```bash
 --run_Sequential_Mapping "yes"
 --Sequential_Mapping_Module_Sequential_Mapping.remove_duplicates [@options:"yes","no" @default:"no"] 
 # Duplicates (both PCR and optical) will be removed from alignment file (bam) and separate count table will be created for comparison
 
---Sequential_Mapping_Module_Sequential_Mapping._select_sequence [array @options:"rRNA","ercc","miRNA","tRNA","piRNA","snRNA","rmsk", "custom"]   
-# Sequence Set for Mapping. eg. ["rRNA", "rmsk", "custom"]
+--Sequential_Mapping_Module_Sequential_Mapping._select_sequence [array @options:"ercc","rmsk", "custom"]   
+# Sequence Set for Mapping. eg. ["ercc", "rmsk", "custom"]
 
 --Sequential_Mapping_Module_Sequential_Mapping.index_directory [array]
 # If custom sequence is defined please enter index directory of custom sequence(full path), otherwise you need to enter empty string. The index directory must include the full path and the name of the index file must only be the prefix of the fasta or index file. Index files and fasta files also need to have the same prefix.For STAR alignment, gtf file which has the same prefix, must be found in same directory. eg. ["", "", "/share/custom_seq_dir"]
 
 --Sequential_Mapping_Module_Sequential_Mapping.name_of_the_index_file [array]  
-# If custom sequence is defined please enter name of the index or fasta file (prefix), otherwise you need to enter selected sequence as string. eg. ["rRNA", "rmsk", "custom_seq_prefix"]
+# If custom sequence is defined please enter name of the index or fasta file (prefix), otherwise you need to enter selected sequence as string. eg. ["ercc", "rmsk", "custom_seq_prefix"]
 
 --Sequential_Mapping_Module_Sequential_Mapping._aligner =  [array @options:"bowtie","bowtie2" @default:"bowtie2"] 
 # Aligner set for mapping: eg. ["bowtie", "bowtie2", "bowtie2"]
@@ -291,7 +291,7 @@ Optianally,Bowtie2/Bowtie/STAR is used to count or filter out common RNAs reads 
 # Aligner parameters." eg. ["--threads 1","-N 1","-N 1"]
 
 --params.Sequential_Mapping_Module_Sequential_Mapping.description [array] 
-# Description of index file (please don't use comma or quotes in this field). eg. ["rRNA", "rmsk", "custom_seq_explanation"]
+# Description of index file (please don't use comma or quotes in this field). eg. ["ercc", "rmsk", "custom_seq_explanation"]
 
 --Sequential_Mapping_Module_Sequential_Mapping.filter_Out =  "[array @options:"Yes","No" @default:"Yes"] 
 # Select whether or not you want the reads mapped to this index filtered out of your total reads.
@@ -341,13 +341,6 @@ Optionally, you can enable RSeQC to calculate how mapped reads were distributed 
 
 ```bash
 --run_RSeQC "yes"
-```
-
-## Picard Analysis
-Optionally, you can enable Picard to calculate multiple metrics such as CollectAlignmentSummaryMetrics, CollectInsertSizeMetrics, QualityScoreDistribution, MeanQualityByCycle, CollectBaseDistributionByCycle, CollectGcBiasMetrics, RnaSeqMetrics, CollectSequencingArtifactMetrics, and CollectQualityYieldMetrics. 
-
-```bash
---run_Picard_CollectMultipleMetrics "yes"
 ```
 
 
