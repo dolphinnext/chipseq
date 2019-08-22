@@ -47,7 +47,7 @@ There are three fields need to be entered: output-prefix, sample-prefix, and inp
 
 #### Run through DolphinNext User Interface:
 
-To start using the dolphinnext/chipseq pipeline please go to [*DolphinNext Web page*](https://dolphinnext.umassmed.edu/index.php?np=1&id=437) and click run button.
+To start using the dolphinnext/chipseq pipeline please go to [*DolphinNext Web page*](https://dolphinnext.umassmed.edu/index.php?np=1&id=473) and click run button.
 
 #### Run through Command Line:
 
