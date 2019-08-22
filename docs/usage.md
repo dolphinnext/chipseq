@@ -57,7 +57,7 @@ If `-profile` is not specified at all the pipeline will be run locally and expec
   * A profile with a complete configuration for automated testing
   ```bash
   ## First, download sample fastq files into `inputs` folder with the following command:
-  mkdir -p inputs && cd inputs && wget https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/control_rep1.1.fastq.gz https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/exper_rep1.1.fastq.gz  && cd ..
+  mkdir -p inputs && cd inputs && wget https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/control_rep1_sm.fastq.gz https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/exper_rep1_sm.fastq.gz  && cd ..
   ## Start testing pipeline:
   nextflow run dolphinnext/chipseq -profile docker,test 
   ## In the test profile, --reads parameter assinged as: 'inputs/*.fastq.gz'
@@ -110,12 +110,14 @@ List of genomes that are supported are:
 * C. elegans
   * `--genome_build c_elegans_ce11_ensembl_ws245`
 
+Note: For new genome requests, please send e-mail to UMMS-Biocore(biocore@umassmed.edu).
+
 
 ### `--DOWNDIR` `--run_checkAndBuild`
 If your indexes are not build before, you can enable `--run_checkAndBuild` by assinging it's value to 'yes' which will check genome files in `--DOWNDIR` and download into that directory. Afterwards it will start building indexes based on the selected parameters in the pipeline. 
 
 
-### `--star_index`, `--bowtie_index`, `--bowtie2_index`, `--hisat2_index`, `--rsem_ref_using_bowtie_index`, `--rsem_ref_using_bowtie2_index`, `--rsem_ref_using_star_index`, `--genome`, `--gtf`, `--bed`, `--genome_sizes`, `--commondb`
+### `--star_index`, `--bowtie_index`, `--bowtie2_index`, `--genome`, `--gtf`, `--bed`, `--genome_sizes`, `--commondb`
 If you prefer, you can specify the full path to your reference genome disable `--run_checkAndBuild` option.
 
 ```bash
@@ -130,7 +132,6 @@ If you prefer, you can specify the full path to your reference genome disable `-
 --bowtie2_index '[path to Bowtie index]' \
 
 ```
-
 
 ## Alignment tool
 By default, the pipeline uses [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) to align the raw FastQ reads to the reference genome. 
@@ -148,7 +149,6 @@ By default, peaks are detected by tool called [MACS2](https://github.com/taoliu/
 
 --ChIP_Module_ChIP_Prep.input_prefix [array] 
 # Use prefix of the input (control) to match files. You can use comma separated format to enter multiples files. eg.["control_rep1,control_rep2", "control_rep3"] 
-
 
 --ChIP_Module_ChIP_Prep.macs2_callpeak_parameters [string @default=""]
 # MACS2 callpeak parameters that found in their [documentation](https://github.com/taoliu/MACS)
