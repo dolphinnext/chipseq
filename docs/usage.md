@@ -98,7 +98,7 @@ List of genomes that are supported are:
 
 * Human
   * `--genome_build human_hg19_refseq`
-  * `--genome_build human_hg38_genecode_v28`
+  * `--genome_build human_hg38_gencode_v28`
 * Mouse
   * `--genome_build mouse_mm10_refseq`
 * Rat
@@ -198,10 +198,10 @@ To enable adapter_removal:
 --Adapter_Trimmer_Quality_Module_Adapter_Removal.Adapter_Sequence [string]
 # You can enter a single sequence or multiple sequences in different lines. Reverse sequences will not be removed.
 
---Adapter_Trimmer_Quality_Module_Adapter_Removal.min_length [int]
+--Adapter_Trimmer_Quality_Module_Adapter_Removal.min_length [int @default:10]
 # Specifies the minimum length of reads to be kept
 
---Adapter_Trimmer_Quality_Module_Adapter_Removal.seed_mismatches [int]
+--Adapter_Trimmer_Quality_Module_Adapter_Removal.seed_mismatches [int @default:1]
 # Specifies the maximum mismatch count which will still allow a full match to be performed
 
 --Adapter_Trimmer_Quality_Module_Adapter_Removal.palindrome_clip_threshold [int @default:30]
