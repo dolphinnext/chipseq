@@ -7,7 +7,7 @@ ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Sam
   2. In the sequential mapping step, Bowtie2 is used to count or filter out common reads (eg. ercc, rmsk). 
   3. Bowtie2 is used to align reads to a selected genome, and duplicates removed with Picard or Samtools,
   4. When processing several samples together, pipeline provide consensus peak calls by merging all peaks individually called in each samples using Bedtools (Quinlan and Hall 2010). The number of reads in each peak location are then quantified using Bedtools (Quinlan and Hall 2010) coverage function.
-  5. Optionally, genome-wide Bam analysis is done by RseQC, and Picard’s CollectRNASeqMetrics program.
+  5. Optionally, genome-wide Bam analysis is done by RseQC.
   6. Optionally, you can create Integrative Genomics Viewer (IGV)  and Genome Browser Files (TDF and Bigwig, respectively)
   7. Optionally, these peaks analyzed by Motif Finder module (HOMER).
   8. As a result, pipeline generates a matrix that has the count values for each peak region and samples. This matrix can be uploaded directly to the embedded version of DEBrowser (Kucukural et al. 2019) to perform differential analysis or downloaded to perform other analysis.
@@ -47,7 +47,7 @@ There are three fields need to be entered: output-prefix, sample-prefix, and inp
 
 #### Run through DolphinNext User Interface:
 
-To start using the dolphinnext/chipseq pipeline please go to [*DolphinNext Web page*](https://dolphinnext.umassmed.edu/index.php?np=1&id=437) and click run button.
+To start using the dolphinnext/chipseq pipeline please go to [*DolphinNext Web page*](https://dolphinnext.umassmed.edu/index.php?np=1&id=473) and click run button.
 
 #### Run through Command Line:
 
