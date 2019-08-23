@@ -57,7 +57,7 @@ If `-profile` is not specified at all the pipeline will be run locally and expec
   * A profile with a complete configuration for automated testing
   ```bash
   ## First, download sample fastq files into `inputs` folder with the following command:
-  mkdir -p inputs && cd inputs && wget https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/control_rep1.1.fastq.gz https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/exper_rep1.1.fastq.gz  && cd ..
+  mkdir -p inputs && cd inputs && wget https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/control_rep1_sm.fastq.gz https://galaxyweb.umassmed.edu/pub/dnext_data/test/reads/exper_rep1_sm.fastq.gz  && cd ..
   ## Start testing pipeline:
   nextflow run dolphinnext/chipseq -profile docker,test 
   ## In the test profile, --reads parameter assinged as: 'inputs/*.fastq.gz'
@@ -98,7 +98,7 @@ List of genomes that are supported are:
 
 * Human
   * `--genome_build human_hg19_refseq`
-  * `--genome_build human_hg38_genecode_v28`
+  * `--genome_build human_hg38_gencode_v28`
 * Mouse
   * `--genome_build mouse_mm10_refseq`
 * Rat
@@ -110,12 +110,14 @@ List of genomes that are supported are:
 * C. elegans
   * `--genome_build c_elegans_ce11_ensembl_ws245`
 
+Note: For new genome requests, please send e-mail to UMMS-Biocore(biocore@umassmed.edu).
+
 
 ### `--DOWNDIR` `--run_checkAndBuild`
 If your indexes are not build before, you can enable `--run_checkAndBuild` by assinging it's value to 'yes' which will check genome files in `--DOWNDIR` and download into that directory. Afterwards it will start building indexes based on the selected parameters in the pipeline. 
 
 
-### `--star_index`, `--bowtie_index`, `--bowtie2_index`, `--hisat2_index`, `--rsem_ref_using_bowtie_index`, `--rsem_ref_using_bowtie2_index`, `--rsem_ref_using_star_index`, `--genome`, `--gtf`, `--bed`, `--genome_sizes`, `--commondb`
+### `--star_index`, `--bowtie_index`, `--bowtie2_index`, `--genome`, `--gtf`, `--bed`, `--genome_sizes`, `--commondb`
 If you prefer, you can specify the full path to your reference genome disable `--run_checkAndBuild` option.
 
 ```bash
@@ -123,14 +125,13 @@ If you prefer, you can specify the full path to your reference genome disable `-
 --genome_sizes '[path to genome_sizes file]' \
 --gtf '[path to GTF file]' \
 --bed '[path to bed12 file]' \
---commondb '[path to commondb directory when Bowtie/Bowtie2 indexes found for common RNA's (eg. rRNA, miRNA, tRNA, etc.)] \
+--commondb '[path to commondb directory when Bowtie/Bowtie2 indexes found for common reads (eg. ercc, rmsk etc.)] \
 
 --star_index '[path to STAR index]' \
 --bowtie_index '[path to Bowtie index]' \
 --bowtie2_index '[path to Bowtie index]' \
 
 ```
-
 
 ## Alignment tool
 By default, the pipeline uses [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) to align the raw FastQ reads to the reference genome. 
@@ -148,7 +149,6 @@ By default, peaks are detected by tool called [MACS2](https://github.com/taoliu/
 
 --ChIP_Module_ChIP_Prep.input_prefix [array] 
 # Use prefix of the input (control) to match files. You can use comma separated format to enter multiples files. eg.["control_rep1,control_rep2", "control_rep3"] 
-
 
 --ChIP_Module_ChIP_Prep.macs2_callpeak_parameters [string @default=""]
 # MACS2 callpeak parameters that found in their [documentation](https://github.com/taoliu/MACS)
@@ -198,10 +198,10 @@ To enable adapter_removal:
 --Adapter_Trimmer_Quality_Module_Adapter_Removal.Adapter_Sequence [string]
 # You can enter a single sequence or multiple sequences in different lines. Reverse sequences will not be removed.
 
---Adapter_Trimmer_Quality_Module_Adapter_Removal.min_length [int]
+--Adapter_Trimmer_Quality_Module_Adapter_Removal.min_length [int @default:10]
 # Specifies the minimum length of reads to be kept
 
---Adapter_Trimmer_Quality_Module_Adapter_Removal.seed_mismatches [int]
+--Adapter_Trimmer_Quality_Module_Adapter_Removal.seed_mismatches [int @default:1]
 # Specifies the maximum mismatch count which will still allow a full match to be performed
 
 --Adapter_Trimmer_Quality_Module_Adapter_Removal.palindrome_clip_threshold [int @default:30]
@@ -268,21 +268,21 @@ To use fastx_toolkit  :
 ```
 
 ## Sequential Mapping
-Optianally,Bowtie2/Bowtie/STAR is used to count or filter out common RNAs reads (eg. rRNA, miRNA, tRNA, piRNA etc.). You need to specify mapping set by entering following paramters in array format.
+Optianally,Bowtie2/Bowtie/STAR is used to count or filter out common reads (eg. rmsk, ercc etc.). You need to specify mapping set by entering following paramters in array format.
 
 ```bash
 --run_Sequential_Mapping "yes"
 --Sequential_Mapping_Module_Sequential_Mapping.remove_duplicates [@options:"yes","no" @default:"no"] 
 # Duplicates (both PCR and optical) will be removed from alignment file (bam) and separate count table will be created for comparison
 
---Sequential_Mapping_Module_Sequential_Mapping._select_sequence [array @options:"rRNA","ercc","miRNA","tRNA","piRNA","snRNA","rmsk", "custom"]   
-# Sequence Set for Mapping. eg. ["rRNA", "rmsk", "custom"]
+--Sequential_Mapping_Module_Sequential_Mapping._select_sequence [array @options:"ercc","rmsk", "custom"]   
+# Sequence Set for Mapping. eg. ["ercc", "rmsk", "custom"]
 
 --Sequential_Mapping_Module_Sequential_Mapping.index_directory [array]
 # If custom sequence is defined please enter index directory of custom sequence(full path), otherwise you need to enter empty string. The index directory must include the full path and the name of the index file must only be the prefix of the fasta or index file. Index files and fasta files also need to have the same prefix.For STAR alignment, gtf file which has the same prefix, must be found in same directory. eg. ["", "", "/share/custom_seq_dir"]
 
 --Sequential_Mapping_Module_Sequential_Mapping.name_of_the_index_file [array]  
-# If custom sequence is defined please enter name of the index or fasta file (prefix), otherwise you need to enter selected sequence as string. eg. ["rRNA", "rmsk", "custom_seq_prefix"]
+# If custom sequence is defined please enter name of the index or fasta file (prefix), otherwise you need to enter selected sequence as string. eg. ["ercc", "rmsk", "custom_seq_prefix"]
 
 --Sequential_Mapping_Module_Sequential_Mapping._aligner =  [array @options:"bowtie","bowtie2" @default:"bowtie2"] 
 # Aligner set for mapping: eg. ["bowtie", "bowtie2", "bowtie2"]
@@ -291,7 +291,7 @@ Optianally,Bowtie2/Bowtie/STAR is used to count or filter out common RNAs reads 
 # Aligner parameters." eg. ["--threads 1","-N 1","-N 1"]
 
 --params.Sequential_Mapping_Module_Sequential_Mapping.description [array] 
-# Description of index file (please don't use comma or quotes in this field). eg. ["rRNA", "rmsk", "custom_seq_explanation"]
+# Description of index file (please don't use comma or quotes in this field). eg. ["ercc", "rmsk", "custom_seq_explanation"]
 
 --Sequential_Mapping_Module_Sequential_Mapping.filter_Out =  "[array @options:"Yes","No" @default:"Yes"] 
 # Select whether or not you want the reads mapped to this index filtered out of your total reads.
@@ -341,13 +341,6 @@ Optionally, you can enable RSeQC to calculate how mapped reads were distributed 
 
 ```bash
 --run_RSeQC "yes"
-```
-
-## Picard Analysis
-Optionally, you can enable Picard to calculate multiple metrics such as CollectAlignmentSummaryMetrics, CollectInsertSizeMetrics, QualityScoreDistribution, MeanQualityByCycle, CollectBaseDistributionByCycle, CollectGcBiasMetrics, RnaSeqMetrics, CollectSequencingArtifactMetrics, and CollectQualityYieldMetrics. 
-
-```bash
---run_Picard_CollectMultipleMetrics "yes"
 ```
 
 
