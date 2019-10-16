@@ -1551,10 +1551,10 @@ shell:
 '''
 num=$(echo "!{bamfiles.join(" ")}" | awk -F" " '{print NF-1}')
 if [ "${num}" -gt 0 ]; then
-    samtools merge !{oldname}.bam !{bamfiles.join(" ")} && samtools sort -O bam -T !{oldname} -o !{oldname}_sorted.bam !{oldname}.bam && samtools index !{oldname}_sorted.bam
+    samtools merge !{oldname}.bam !{bamfiles.join(" ")} && samtools sort -o !{oldname}_sorted.bam !{oldname}.bam && samtools index !{oldname}_sorted.bam
 else
     mv !{bamfiles.join(" ")} !{oldname}.bam 2>/dev/null || true
-    samtools sort  -T !{oldname} -O bam -o !{oldname}_sorted.bam !{oldname}.bam && samtools index !{oldname}_sorted.bam
+    samtools sort  -o !{oldname}_sorted.bam !{oldname}.bam && samtools index !{oldname}_sorted.bam
 fi
 '''
 }
@@ -2793,14 +2793,16 @@ when:
 script:
 nameAll = bam.toString()
 if (nameAll.contains('_sorted.bam')) {
-    runSamtools = ''
+    runSamtools = "samtools index ${nameAll}"
+    nameFinal = nameAll
 } else {
-    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index "+ name+"_sorted.bam "
+    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index ${name}_sorted.bam "
+    nameFinal = "${name}_sorted.bam"
 }
 
 """
 $runSamtools
-bedtools genomecov -split -bg -ibam ${name}_sorted.bam -g ${params.genome_sizes} > ${name}.bg 
+bedtools genomecov -split -bg -ibam ${nameFinal} -g ${params.genome_sizes} > ${name}.bg 
 wigToBigWig -clip -itemsPerSlot=1 ${name}.bg ${params.genome_sizes} ${name}.bw 
 """
 }
@@ -2831,13 +2833,15 @@ script:
 pairedText = (params.nucleicAcidType == "dna" && mate == "pair") ? " --pairs " : ""
 nameAll = bam.toString()
 if (nameAll.contains('_sorted.bam')) {
-    runSamtools = ''
+    runSamtools = "samtools index ${nameAll}"
+    nameFinal = nameAll
 } else {
-    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index "+ name+"_sorted.bam "
+    runSamtools = "samtools sort -o ${name}_sorted.bam $bam && samtools index ${name}_sorted.bam "
+    nameFinal = "${name}_sorted.bam"
 }
 """
 $runSamtools
-igvtools count -w ${igv_window_size} -e ${igv_extention_factor} ${pairedText} ${name}_sorted.bam ${name}.tdf ${params.genome}
+igvtools count -w ${igv_window_size} -e ${igv_extention_factor} ${pairedText} ${nameFinal} ${name}.tdf ${params.genome_sizes}
 """
 }
 
