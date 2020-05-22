@@ -1,4 +1,4 @@
-[![Travis-ci tests:](https://travis-ci.org/dolphinnext/chipseq.svg?branch=master)](https://travis-ci.org/dolphinnext/chipseq) [![DOI:10.1101/689539](https://zenodo.org/badge/DOI/10.1101/689539.svg)](https://doi.org/10.1101/689539)
+[![Travis-ci tests:](https://travis-ci.org/dolphinnext/chipseq.svg?branch=master)](https://travis-ci.org/dolphinnext/chipseq) [![DOI:10.1186/s12864-020-6714-x](https://zenodo.org/badge/DOI/10.1186/s12864-020-6714-x.svg)](https://doi.org/10.1186/s12864-020-6714-x)
 
 ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Samtools, calls ChIP peaks with MACS2 and finally creates count table for analysis.  Additionally these peaks analyzed by Motif Finder module (HOMER).
 
@@ -17,12 +17,22 @@ ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Sam
   - Reads
   - ChIP-prep section
 
-There are three fields need to be entered: output-prefix, sample-prefix, and input-prefix. Please use sample names to fill this form.For instance, to enter following files control-rep1.fastq.gz, exper-rep1.fastq.gz, use the table at below.
+To enable peak calling, please fill the **Sample Definitions** into the settings of run_ChIP_MACS2 as described below:
+There are three fields need to be entered: output-prefix, sample-prefix, and input-prefix. 
 
-    | output-prefix | sample-prefix | input-prefix |
-    |---------------|---------------|--------------|
-    | exper         |   exper-rep1  | control-rep1 |
-    | control       |  control-rep1 |              |
+| Output-Prefix | Sample-Prefix | Input-Prefix (optional) |
+|---------------|---------------|-------------------------|
+| exper-rep1    |  exper-rep1   |                         |
+| control-rep1  |  control-rep1 |                         |
+
+* Output-Prefix: Output prefix of the sample. Final reports will be created by using this sample name. 
+* Sample-Prefix: Sample name which is entered in the reads section.
+* Input-Prefix (optional):  If your experiment has background sample (input), you can specify its prefix in this section.
+
+#### Citation:
+
+If you use DolphinNext in your research, please cite: 
+Yukselen, O., Turkyilmaz, O., Ozturk, A.R. et al. DolphinNext: a distributed data processing platform for high throughput genomics. BMC Genomics 21, 310 (2020). https://doi.org/10.1186/s12864-020-6714-x
 
 
 #### Program Versions:
