@@ -52,6 +52,8 @@ output:
  set val(name), file("reads/*.fastq")  into g123_18_reads_g123_19
  file "*.{fastx,trimmomatic}.log"  into g123_18_log_file_g123_11
 
+errorStrategy 'retry'
+
 when:
 (params.run_Adapter_Removal && (params.run_Adapter_Removal == "yes")) || !params.run_Adapter_Removal
 
@@ -108,23 +110,21 @@ foreach my $adap (@adaps)
 }
 close(OUT);
 
-runCmd("!{runGzip}");
+system("!{runGzip}");
 my $quality="!{phred}";
 print "fastq quality: $quality\\n";
 print "tool: !{Tool_for_Adapter_Removal}\\n";
 
 if ("!{mate}" eq "pair") {
     if ("!{Tool_for_Adapter_Removal}" eq "trimmomatic") {
-        runCmd("trimmomatic PE -threads 1 -phred${quality} !{file1} !{file2} reads/!{name}.1.fastq unpaired/!{name}.1.fastq.unpaired reads/!{name}.2.fastq unpaired/!{name}.1.fastq.unpaired ILLUMINACLIP:adapter/adapter.fa:!{seed_mismatches}:!{palindrome_clip_threshold}:!{simple_clip_threshold} MINLEN:!{min_length} 2> !{name}.trimmomatic.log");
+        runCmd("trimmomatic PE -threads 1 -phred${quality} !{file1} !{file2} reads/!{name}.1.fastq unpaired/!{name}.1.fastq.unpaired reads/!{name}.2.fastq unpaired/!{name}.2.fastq.unpaired ILLUMINACLIP:adapter/adapter.fa:!{seed_mismatches}:!{palindrome_clip_threshold}:!{simple_clip_threshold} MINLEN:!{min_length} 2> !{name}.trimmomatic.log");
     } elsif ("!{Tool_for_Adapter_Removal}" eq "fastx_clipper") {
         print "Fastx_clipper is not suitable for paired reads.";
     }
 } else {
     if ("!{Tool_for_Adapter_Removal}" eq "trimmomatic") {
-        print "trimmomatic SE -threads 1  -phred${quality} !{file1} reads/!{name}.fastq ILLUMINACLIP:adapter/adapter.fa:!{seed_mismatches}:!{palindrome_clip_threshold}:!{simple_clip_threshold} MINLEN:!{min_length} 2> !{name}.trimmomatic.log";
         runCmd("trimmomatic SE -threads 1  -phred${quality} !{file1} reads/!{name}.fastq ILLUMINACLIP:adapter/adapter.fa:!{seed_mismatches}:!{palindrome_clip_threshold}:!{simple_clip_threshold} MINLEN:!{min_length} 2> !{name}.trimmomatic.log");
     } elsif ("!{Tool_for_Adapter_Removal}" eq "fastx_clipper") {
-        print "fastx_clipper  -Q $quality -a !{Adapter_Sequence} -l !{min_length} !{discard_non_clipped_text} -v -i !{file1} -o reads/!{name}.fastq > !{name}.fastx.log";
         runCmd("fastx_clipper  -Q $quality -a !{Adapter_Sequence} -l !{min_length} !{discard_non_clipped_text} -v -i !{file1} -o reads/!{name}.fastq > !{name}.fastx.log");
     }
 }
@@ -144,10 +144,8 @@ if ("!{remove_previous_reads}" eq "true") {
 sub runCmd {
     my ($com) = @_;
     my $error = system($com);
-    print "Command: $com $error\\n";
-    print "Log: $error\\n";
-    # if   ($error) { die "Command failed: $error $com\\n"; }
-    # else          { print "Command successful: $com\\n"; }
+    if   ($error) { die "Command failed: $error $com\\n"; }
+    else          { print "Command successful: $com\\n"; }
 }
 '''
 
@@ -183,6 +181,8 @@ input:
 output:
  set val(name), file("reads/*q")  into g123_19_reads_g123_20
  file "*.log" optional true  into g123_19_log_file_g123_21
+
+errorStrategy 'retry'
 
 when:
 (params.run_Trimmer && (params.run_Trimmer == "yes")) || !params.run_Trimmer
@@ -280,7 +280,7 @@ sub trimFiles
           print "INFO: Trimmer skipped for $file \\n";
           system("mv $file reads/.");
       } else {
-          system("$com");
+          runCmd("$com");
           print "INFO: Trimmer executed for $file \\n";
       }
     }
@@ -307,6 +307,13 @@ sub getLength
    }
    close(IN);
    return $len;
+}
+
+sub runCmd {
+    my ($com) = @_;
+    my $error = system($com);
+    if   ($error) { die "Command failed: $error $com\\n"; }
+    else          { print "Command successful: $com\\n"; }
 }
 
 '''
@@ -428,6 +435,8 @@ output:
  set val(name), file("reads/*q")  into g123_20_reads_g124_32
  file "*.{fastx,trimmomatic}_quality.log" optional true  into g123_20_log_file_g123_16
 
+errorStrategy 'retry'
+
 when:
 (params.run_Quality_Filtering && (params.run_Quality_Filtering == "yes")) || !params.run_Quality_Filtering    
 
@@ -484,16 +493,16 @@ print "INFO: fastq quality: $quality\\n";
      
 if ("!{tool}" eq "trimmomatic") {
     if ("!{mate}" eq "pair") {
-        system("trimmomatic PE -phred${quality} !{file1} !{file2} reads/!{name}.1.fastq unpaired/!{name}.1.fastq.unpaired reads/!{name}.2.fastq unpaired/!{name}.1.fastq.unpaired $param 2> !{name}.trimmomatic_quality.log");
+        runCmd("trimmomatic PE -phred${quality} !{file1} !{file2} reads/!{name}.1.fastq unpaired/!{name}.1.fastq.unpaired reads/!{name}.2.fastq unpaired/!{name}.1.fastq.unpaired $param 2> !{name}.trimmomatic_quality.log");
     } else {
-        system("trimmomatic SE -phred${quality} !{file1} reads/!{name}.fastq $param 2> !{name}.trimmomatic_quality.log");
+        runCmd("trimmomatic SE -phred${quality} !{file1} reads/!{name}.fastq $param 2> !{name}.trimmomatic_quality.log");
     }
 } elsif ("!{tool}" eq "fastx") {
     if ("!{mate}" eq "pair") {
         print("WARNING: Fastx option is not suitable for paired reads. This step will be skipped.");
         system("mv !{file1} !{file2} reads/.");
     } else {
-        system("fastq_quality_filter  -Q $quality -q !{minQuality} -p !{minPercent} -v -i !{file1} -o reads/!{name}.fastq > !{name}.fastx_quality.log");
+        runCmd("fastq_quality_filter  -Q $quality -q !{minQuality} -p !{minPercent} -v -i !{file1} -o reads/!{name}.fastq > !{name}.fastx_quality.log");
     }
 }
 if ("!{remove_previous_reads}" eq "true") {
@@ -505,6 +514,14 @@ if ("!{remove_previous_reads}" eq "true") {
             print "INFO: $targetFile deleted.\\n";
         }
     }
+}
+
+##Subroutines
+sub runCmd {
+    my ($com) = @_;
+    my $error = system($com);
+    if   ($error) { die "Command failed: $error $com\\n"; }
+    else          { print "Command successful: $com\\n"; }
 }
 
 
@@ -2093,6 +2110,9 @@ foreach my $bowitem(@bowArray) {
 		## Besides, these "too many loci" reads exported as unmapped reads from STAR.
 		$RDS_In = int($inputCount);
 		$RDS_Multi = int($aligned) -int($uniqAligned);
+		if ($RDS_Multi < 0 ){
+		    $RDS_Multi = 0;
+		}
         $RDS_Uniq = int($uniqAligned);
         $ALGN_T = int($aligned);
 		if ($filterArray[$bowCount] eq "Yes"){
