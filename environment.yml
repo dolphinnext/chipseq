@@ -17,6 +17,6 @@ dependencies:
   - bowtie=1.2.2
   - trimmomatic=0.39
   - igvtools=2.5.3
-  - bedtools=2.27.1
+  - bedtools=2.29.2
   - fastx_toolkit=0.0.14
   - ucsc-wigToBigWig=366
