@@ -27,8 +27,9 @@ RUN apt-get -y install apt-transport-https
 RUN apt-get -y update
 
 RUN conda update -n base -c defaults conda
+RUN conda config --set channel_priority strict
 COPY environment.yml /
-RUN conda env create -f /environment.yml && conda clean -a
+RUN conda env create -f /environment.yml --debug && conda clean -a
 # Install standard utilities for HOMERv4.10
 RUN apt-get clean all
 RUN apt-get update
