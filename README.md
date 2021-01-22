@@ -46,7 +46,7 @@ Yukselen, O., Turkyilmaz, O., Ozturk, A.R. et al. DolphinNext: a distributed dat
   - Multiqc v1.7
   - Trimmomatic v0.39
   - Igvtools v2.5.3
-  - Bedtools v2.27.1
+  - Bedtools v2.29.2
   - Fastx_toolkit v0.0.14
   - Ucsc-wigToBigWig v366
   - Pdfbox-App v2.0.0

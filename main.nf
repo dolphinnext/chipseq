@@ -3402,7 +3402,6 @@ if [ -s "${compare_bed}" ]; then
         samtools view -H ${name}.bam | grep -P "@SQ\\tSN:" | sed 's/@SQ\\tSN://' | sed 's/\\tLN:/\\t/' > ${name}_chroms
         samtools sort -T ${name} -o ${name}_sorted.bam ${name}.bam
         bedtools intersect -abam ${name}_sorted.bam -b ${compare_bed} > temp_${name}.bam
-        ls -lha temp_${name}.bam
         bedtools sort -faidx ${name}_chroms -i ${compare_bed}  | bedtools coverage ${bedtoolsCoverage_Parameters} -a stdin -b temp_${name}.bam  > temp_${name}.bed
         # 'The number of features in B that overlapped the A interval' multiplied by 'fraction of bases in A that had non-zero coverage from features in B'.
         awk '{\$NF=\$(NF-3)*\$NF;print }' OFS="\\t" temp_${name}.bed | grep -v all > temp_${name}_hist.bed
