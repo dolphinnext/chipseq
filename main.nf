@@ -8,22 +8,16 @@ params.use_STAR_Index    = (params.run_Sequential_Mapping == "yes") ? "yes" : ""
 if (!params.reads){params.reads = ""} 
 if (!params.run_Motif_Finder_on_ChIP_Peaks){params.run_Motif_Finder_on_ChIP_Peaks = ""} 
 if (!params.mate){params.mate = ""} 
-if (!params.genome_url){params.genome_url = ""} 
-if (!params.gtf_url){params.gtf_url = ""} 
-if (!params.commondb_url){params.commondb_url = ""} 
 
 Channel
-	.fromFilePairs( params.reads , size: (params.mate != "pair") ? 1 : 2 )
+	.fromFilePairs( params.reads , size: params.mate == "single" ? 1 : params.mate == "pair" ? 2 : params.mate == "triple" ? 3 : params.mate == "quadruple" ? 4 : -1 )
 	.ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
 	.into{g_1_reads_g123_3;g_1_reads_g123_18}
 
 Channel.value(params.run_Motif_Finder_on_ChIP_Peaks).set{g_119_run_Homer_g134_7}
 Channel.value(params.mate).into{g_122_mate_g_68;g_122_mate_g123_3;g_122_mate_g123_11;g_122_mate_g123_16;g_122_mate_g123_18;g_122_mate_g123_19;g_122_mate_g123_20;g_122_mate_g123_21;g_122_mate_g124_26;g_122_mate_g124_30;g_122_mate_g124_32;g_122_mate_g127_10;g_122_mate_g127_13;g_122_mate_g128_9;g_122_mate_g128_23;g_122_mate_g128_25;g_122_mate_g126_82;g_122_mate_g126_95;g_122_mate_g126_123;g_122_mate_g126_126}
-g_129_genome_url_g125_15 = file(params.genome_url, type: 'any') 
-g_130_gtf_url_g125_15 = file(params.gtf_url, type: 'any') 
-Channel.value(params.commondb_url).set{g_131_commondb_url_g125_15}
 
-params.run_Adapter_Removal =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Adapter_Removal"
+//* params.run_Adapter_Removal =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Adapter_Removal"
 //* @style @multicolumn:{seed_mismatches, palindrome_clip_threshold, simple_clip_threshold} @condition:{Tool_for_Adapter_Removal="trimmomatic", seed_mismatches, palindrome_clip_threshold, simple_clip_threshold}, {Tool_for_Adapter_Removal="fastx_clipper", discard_non_clipped}
 
 //* autofill
@@ -71,9 +65,6 @@ simple_clip_threshold = params.Adapter_Trimmer_Quality_Module_Adapter_Removal.si
 discard_non_clipped = params.Adapter_Trimmer_Quality_Module_Adapter_Removal.discard_non_clipped
     
 remove_previous_reads = params.Adapter_Trimmer_Quality_Module_Adapter_Removal.remove_previous_reads
-workdir = workflow.workDir.toString()
-inputsdir = workdir.substring(0, workdir.lastIndexOf('/')) + "/inputs"    
-    
 discard_non_clipped_text = ""
 if (discard_non_clipped == "yes") {discard_non_clipped_text = "-c"}
 nameAll = reads.toString()
@@ -96,7 +87,8 @@ if (nameAll.contains('.gz')) {
  use strict;
  use File::Basename;
  use Getopt::Long;
- use Pod::Usage; 
+ use Pod::Usage;
+ use Cwd qw();
  
 runCmd("mkdir reads adapter unpaired");
 
@@ -129,11 +121,18 @@ if ("!{mate}" eq "pair") {
     }
 }
 if ("!{remove_previous_reads}" eq "true") {
+    my $currpath = Cwd::cwd();
+    my @paths = (split '/', $currpath);
+    splice(@paths, -2);
+    my $workdir= join '/', @paths;
+    splice(@paths, -1);
+    my $inputsdir = join '/', @paths;
+    $inputsdir .= "/inputs";
     print "INFO: inputs reads will be removed if they are located in the workdir inputsdir\\n";
     my @listOfFiles = `readlink -e !{file1} !{file2}`;
     foreach my $targetFile (@listOfFiles){
-        if (index($targetFile, "!{workdir}") != -1 || index($targetFile, "!{inputsdir}") != -1) {
-            runCmd("rm -f $targetFile");
+        if (index($targetFile, $workdir) != -1 || index($targetFile, $inputsdir) != -1) {
+            system("rm -f $targetFile");
             print "INFO: $targetFile deleted.\\n";
         }
     }
@@ -153,7 +152,7 @@ sub runCmd {
 }
 
 
-params.run_Trimmer =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Trimmer"
+//* params.run_Trimmer =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Trimmer"
 //* @style @multicolumn:{trim_length_5prime,trim_length_3prime}, {trim_length_5prime_R1,trim_length_3prime_R1}, {trim_length_5prime_R2,trim_length_3prime_R2} @condition:{single_or_paired_end_reads="single", trim_length_5prime,trim_length_3prime}, {single_or_paired_end_reads="pair", trim_length_5prime_R1,trim_length_3prime_R1,trim_length_5prime_R2,trim_length_3prime_R2}
 
 //* autofill
@@ -197,9 +196,6 @@ trim_length_3prime_R1 = params.Adapter_Trimmer_Quality_Module_Trimmer.trim_lengt
 trim_length_5prime_R2 = params.Adapter_Trimmer_Quality_Module_Trimmer.trim_length_5prime_R2
 trim_length_3prime_R2 = params.Adapter_Trimmer_Quality_Module_Trimmer.trim_length_3prime_R2
 remove_previous_reads = params.Adapter_Trimmer_Quality_Module_Trimmer.remove_previous_reads
-workdir = workflow.workDir.toString()
-inputsdir = workdir.substring(0, workdir.lastIndexOf('/')) + "/inputs"
-
 
 nameAll = reads.toString()
 nameArray = nameAll.split(' ')
@@ -222,6 +218,7 @@ if (nameAll.contains('.gz')) {
  use File::Basename;
  use Getopt::Long;
  use Pod::Usage; 
+ use Cwd qw();
  
 system("mkdir reads");
 system("!{runGzip}");
@@ -246,10 +243,17 @@ if ("!{mate}" eq "pair") {
     trimFiles($file1, $trim1, $len);
 }
 if ("!{remove_previous_reads}" eq "true") {
-    print "INFO: inputs reads will be removed if they are located in the workdir/inputsdir\\n";
-    my @listOfFiles = `readlink -e $file1 $file2`;
+    my $currpath = Cwd::cwd();
+    my @paths = (split '/', $currpath);
+    splice(@paths, -2);
+    my $workdir= join '/', @paths;
+    splice(@paths, -1);
+    my $inputsdir= join '/', @paths;
+    $inputsdir .= "/inputs";
+    print "INFO: inputs reads will be removed if they are located in the workdir inputsdir\\n";
+    my @listOfFiles = `readlink -e !{file1} !{file2}`;
     foreach my $targetFile (@listOfFiles){
-        if (index($targetFile, "!{workdir}") != -1 || index($targetFile, "!{inputsdir}") != -1) {
+        if (index($targetFile, $workdir) != -1 || index($targetFile, $inputsdir) != -1) {
             system("rm -f $targetFile");
             print "INFO: $targetFile deleted.\\n";
         }
@@ -406,7 +410,7 @@ sub writeFile {
 '''
 }
 
-params.run_Quality_Filtering =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Quality_Filtering"
+//* params.run_Quality_Filtering =   "no"   //* @dropdown @options:"yes","no" @show_settings:"Quality_Filtering"
 //* @style @multicolumn:{window_size,required_quality}, {leading,trailing,minlen}, {minQuality,minPercent} @condition:{tool="trimmomatic", minlen, trailing, leading, required_quality_for_window_trimming, window_size}, {tool="fastx", minQuality, minPercent}
 
 //* autofill
@@ -455,9 +459,7 @@ minQuality = params.Adapter_Trimmer_Quality_Module_Quality_Filtering.minQuality
 minPercent = params.Adapter_Trimmer_Quality_Module_Quality_Filtering.minPercent
 
 remove_previous_reads = params.Adapter_Trimmer_Quality_Module_Quality_Filtering.remove_previous_reads
-workdir = workflow.workDir.toString()
-inputsdir = workdir.substring(0, workdir.lastIndexOf('/')) + "/inputs"
-    
+
 nameAll = reads.toString()
 nameArray = nameAll.split(' ')
 file2 ="";
@@ -479,6 +481,7 @@ if (nameAll.contains('.gz')) {
  use File::Basename;
  use Getopt::Long;
  use Pod::Usage; 
+ use Cwd qw();
  
 system("mkdir reads unpaired");
 system("!{runGzip}");
@@ -506,10 +509,17 @@ if ("!{tool}" eq "trimmomatic") {
     }
 }
 if ("!{remove_previous_reads}" eq "true") {
-    print "INFO: inputs reads will be removed if they are located in the workdir or inputsdir\\n";
+    my $currpath = Cwd::cwd();
+    my @paths = (split '/', $currpath);
+    splice(@paths, -2);
+    my $workdir= join '/', @paths;
+    splice(@paths, -1);
+    my $inputsdir= join '/', @paths;
+    $inputsdir .= "/inputs";
+    print "INFO: inputs reads will be removed if they are located in the workdir inputsdir\\n";
     my @listOfFiles = `readlink -e !{file1} !{file2}`;
     foreach my $targetFile (@listOfFiles){
-        if (index($targetFile, "!{workdir}") != -1 || index($targetFile, "!{inputsdir}") != -1) {
+        if (index($targetFile, $workdir) != -1 || index($targetFile, $inputsdir) != -1) {
             system("rm -f $targetFile");
             print "INFO: $targetFile deleted.\\n";
         }
@@ -760,16 +770,27 @@ sub writeFile {
 '''
 }
 
-params.gtf =  ""  //* @input
-params.genome =  ""  //* @input
-params.commondb =  ""  //* @input
+//* params.gtf =  ""  //* @input
+//* params.genome =  ""  //* @input
+//* params.commondb =  ""  //* @input
+//* params.genome_url =  ""  //* @input
+//* params.gtf_url =  ""  //* @input
+//* params.commondb_url =  ""  //* @input
+
+def downFile(path){
+    if (path.take(1).indexOf("/") == 0){
+      target=path
+    } else {
+      a=file(path)
+      fname = a.getName().toString()
+      target = "${baseDir}/work/${fname}"
+      a.copyTo(target) 
+    }
+    return target
+}
 
 process Check_and_Build_Module_Check_Genome_GTF {
 
-input:
- file fasta from g_129_genome_url_g125_15
- file downGtf from g_130_gtf_url_g125_15
- val commondb_url from g_131_commondb_url_g125_15
 
 output:
  val "${params.genome}"  into g125_15_genomePath_g125_0, g125_15_genomePath_g125_6, g125_15_genomePath_g125_8, g125_15_genomePath_g125_10, g125_15_genomePath_g125_5, g125_15_genomePath_g125_13
@@ -782,26 +803,33 @@ params.run_checkAndBuild == "yes"
 script:
 gtf_dir  = params.gtf.substring(0, params.gtf.lastIndexOf('/')) 
 genome_dir  = params.genome.substring(0, params.genome.lastIndexOf('/')) 
-slashCount = commondb_url.count("/")
+slashCount = params.commondb_url.count("/")
 cutDir = slashCount - 3;
 
+downGenomePath = ""
+downGtfPath = ""
+if ( !file("${params.genome}").exists() ) {
+	downGenomePath=downFile(params.genome_url)
+}
+if ( !file("${params.gtf}").exists() ) {
+	downGtfPath=downFile(params.gtf_url)
+}
+
 """
-downGenomePath=\$(realpath $fasta)
-downGtfPath=\$(realpath $downGtf)
 if [ ! -e "${params.genome}" ] ; then
     echo "${params.genome} not found"
     mkdir -p ${genome_dir}
-    cp -n \$downGenomePath ${params.genome}
+    cp -n $downGenomePath ${params.genome}
 fi
 if [ ! -e "${params.gtf}" ] ; then
     echo "${params.gtf} not found"
     mkdir -p ${gtf_dir}
-    cp -n \$downGtfPath ${params.gtf}
+    cp -n $downGtfPath ${params.gtf}
 fi
 if [ ! -e "${params.commondb}" ] ; then
     echo "${params.commondb} not found"
     mkdir -p ${params.commondb}
-    wget -l inf -nc -nH --cut-dirs=$cutDir -R 'index.html*' -r --no-parent --directory-prefix=${params.commondb} $commondb_url
+    wget -l inf -nc -nH --cut-dirs=$cutDir -R 'index.html*' -r --no-parent --directory-prefix=${params.commondb} ${params.commondb_url}
 fi
 
 """
@@ -849,7 +877,7 @@ fi
 
 }
 
-params.gtf2bed_path =  ""  //* @input
+//* params.gtf2bed_path =  ""  //* @input
 
 process Check_and_Build_Module_Check_GTF2BED12 {
 
@@ -874,7 +902,7 @@ fi
 
 }
 
-params.gtf2bed_path =  ""  //* @input
+//* params.gtf2bed_path =  ""  //* @input
 
 process Check_and_Build_Module_Check_chrom_sizes_and_index {
 
@@ -1101,9 +1129,9 @@ fi
 
 }
 
-params.gtf =  ""  //* @input
-params.genome =  ""  //* @input
-params.commondb =  ""  //* @input
+//* params.gtf =  ""  //* @input
+//* params.genome =  ""  //* @input
+//* params.commondb =  ""  //* @input
 if (!(params.run_checkAndBuild == "yes" && params.run_Sequential_Mapping  == "yes")){
 g125_15_commondb_path_g125_18.into{g125_18_commondb_path_g124_32}
 } else {
@@ -1132,17 +1160,17 @@ script:
 
 g125_18_commondb_path_g124_32= g125_18_commondb_path_g124_32.ifEmpty([""]) 
 
-params.run_Sequential_Mapping =   "yes"   //* @dropdown @options:"yes","no" @show_settings:"Sequential_Mapping" @description:"Filters out or quantify given sequence sets."
-params.bowtieInd_rRNA =  ""  //* @input
-params.bowtieInd_ercc =  ""  //* @input
-params.bowtieInd_miRNA =  ""  //* @input
-params.bowtieInd_tRNA =  ""  //* @input
-params.bowtieInd_piRNA =  ""  //* @input
-params.bowtieInd_snRNA =  ""  //* @input
-params.bowtieInd_rmsk =  ""  //* @input
-params.bowtie_index =  ""  //* @input
-params.bowtie2_index =  ""  //* @input
-params.star_index =  ""  //* @input
+//* params.run_Sequential_Mapping =   "yes"   //* @dropdown @options:"yes","no" @show_settings:"Sequential_Mapping" @description:"Filters out or quantify given sequence sets."
+//* params.bowtieInd_rRNA =  ""  //* @input
+//* params.bowtieInd_ercc =  ""  //* @input
+//* params.bowtieInd_miRNA =  ""  //* @input
+//* params.bowtieInd_tRNA =  ""  //* @input
+//* params.bowtieInd_piRNA =  ""  //* @input
+//* params.bowtieInd_snRNA =  ""  //* @input
+//* params.bowtieInd_rmsk =  ""  //* @input
+//* params.bowtie_index =  ""  //* @input
+//* params.bowtie2_index =  ""  //* @input
+//* params.star_index =  ""  //* @input
 
 //both bowtie and bowtie2 indexes located in same path
 bowtieIndexes = [rRNA: params.bowtieInd_rRNA, 
@@ -1259,6 +1287,7 @@ output:
  file "*/*_duplicates_stats.log" optional true  into g124_32_log_file_g124_30
 
 errorStrategy 'retry'
+maxRetries 2
 
 when:
 params.run_Sequential_Mapping == "yes"
@@ -1283,11 +1312,11 @@ if (nameAll.contains('.gz')) {
 remove_duplicates = params.Sequential_Mapping_Module_Sequential_Mapping.remove_duplicates
 remove_duplicates_based_on_UMI_after_mapping = params.Sequential_Mapping_Module_Sequential_Mapping.remove_duplicates_based_on_UMI_after_mapping
 remove_previous_reads = params.Sequential_Mapping_Module_Sequential_Mapping.remove_previous_reads
-workflowWorkDir = workflow.workDir
 
 """
 #!/bin/bash
-mkdir reads final_reads bowfiles 
+mkdir reads final_reads bowfiles
+workflowWorkDir=\$(cd ../../ && pwd)
 if [ -n "${mappingList}" ]; then
     $runGzip
     #rename files to standart format
@@ -1384,9 +1413,9 @@ if [ -n "${mappingList}" ]; then
                 echo "INFO: samtools view -F 0x04 -b \${rna_set}_${name}_tmp0.bam > \${rna_set}_${name}_alignment.bam"
                 samtools view -F 0x04 -b \${rna_set}_${name}_tmp0.bam > \${rna_set}_${name}_alignment.bam  # Remove unmapped reads
                 if [ "${mate}" == "pair" ]; then
-                    echo "# unique mapped reads: \$(samtools view -f 0x40 -F 0x4 -q 255 \${rna_set}_${name}_alignment.bam | cut -f 1 | sort | uniq | wc -l)" >> \${k2}_${name}.bow1_\${rna_set}
+                    echo "# unique mapped reads: \$(samtools view -f 0x40 -F 0x4 -q 255 \${rna_set}_${name}_alignment.bam | cut -f 1 | sort -T '.' | uniq | wc -l)" >> \${k2}_${name}.bow1_\${rna_set}
                 else
-                    echo "# unique mapped reads: \$(samtools view -F 0x40 -q 255 \${rna_set}_${name}_alignment.bam | cut -f 1 | sort | uniq | wc -l)" >> \${k2}_${name}.bow1_\${rna_set}
+                    echo "# unique mapped reads: \$(samtools view -F 0x40 -q 255 \${rna_set}_${name}_alignment.bam | cut -f 1 | sort -T '.' | uniq | wc -l)" >> \${k2}_${name}.bow1_\${rna_set}
                 fi
             fi
             if [ "${mate}" == "pair" ]; then
@@ -1454,7 +1483,7 @@ if [ -n "${mappingList}" ]; then
                     for f in \${prev}/*; do
                         targetFile=\$(readlink -e \$f)
                         echo "INFO: targetFile: \$targetFile"
-                        if [[ \$targetFile == *"${workflowWorkDir}"* ]]; then
+                        if [[ \$targetFile == *"\${workflowWorkDir}"* ]]; then
                             rm -f \$targetFile
                             echo "INFO: \$targetFile located in workdir and deleted."
                         fi
@@ -1487,7 +1516,7 @@ fi
 }
 
 
-params.run_Split_Fastq =  "no"  //* @dropdown @options:"yes","no" @show_settings:"SplitFastq" @description:"Splits Fastq files before aligning with Star, Hisat2 or Tophat2 to speed up the process. However, it will require more disk space."
+//* params.run_Split_Fastq =  "no"  //* @dropdown @options:"yes","no" @show_settings:"SplitFastq" @description:"Splits Fastq files before aligning with Star, Hisat2 or Tophat2 to speed up the process. However, it will require more disk space."
 readsPerFile = params.SplitFastq.readsPerFile
 //Since splitFastq operator requires flat file structure, first convert grouped structure to flat, execute splitFastq, and then return back to original grouped structure
 //.map(flatPairsClosure).splitFastq(splitFastqParams).map(groupPairsClosure)
@@ -1540,6 +1569,9 @@ input:
 output:
  set val(name), file("split/*q")  into g_68_reads_g127_13
 
+errorStrategy 'retry'
+maxRetries 3
+
 when:
 params.run_Split_Fastq == "yes"
 
@@ -1554,6 +1586,7 @@ mv ${reads} split/.
 
 g125_6_genomeIndexPath_g127_13= g125_6_genomeIndexPath_g127_13.ifEmpty([""]) 
 
+//* params.bowtie2_index =  ""  //* @input
 //* autofill
 if ($HOSTNAME == "default"){
     $CPU  = 3
@@ -1644,6 +1677,9 @@ output:
  set val(oldname), file("*_sorted*bai")  into g127_15_bam_index
  set val(oldname), file("*_sorted*bam")  into g127_15_sorted_bam_g128_21
 
+errorStrategy 'retry'
+maxRetries 2
+
 shell:
 '''
 num=$(echo "!{bamfiles.join(" ")}" | awk -F" " '{print NF-1}')
@@ -1656,7 +1692,7 @@ fi
 '''
 }
 
-params.run_Remove_Multimappers_with_Samtools =  "no"  //* @dropdown @options:"yes","no" @show_settings:"Remove_Multimappers"
+//* params.run_Remove_Multimappers_with_Samtools =  "no"  //* @dropdown @options:"yes","no" @show_settings:"Remove_Multimappers"
 
 if (!(params.run_Remove_Multimappers_with_Samtools == "yes")){
 g127_15_sorted_bam_g128_21.into{g128_21_mapped_reads_g128_22}
@@ -1927,6 +1963,9 @@ input:
 output:
  file "deduplication_summary.tsv"  into g124_30_outputFileTSV
 
+errorStrategy 'retry'
+maxRetries 2
+
 shell:
 '''
 #!/usr/bin/env perl
@@ -2028,6 +2067,9 @@ input:
 output:
  file '*.tsv'  into g124_26_outputFileTSV_g124_13
  val "sequential_mapping_sum"  into g124_26_name_g124_13
+
+errorStrategy 'retry'
+maxRetries 2
 
 shell:
 '''
@@ -2142,6 +2184,9 @@ input:
 output:
  file "${name}.tsv"  into g124_13_outputFileTSV_g124_14
 
+errorStrategy 'retry'
+maxRetries 3
+
 script:
 name = outputFileName[0]
 """    
@@ -2163,6 +2208,9 @@ input:
 output:
  file "sequential_mapping_short_sum.tsv"  into g124_14_outputFileTSV_g_115
  file "sequential_mapping_detailed_sum.tsv"  into g124_14_outputFile
+
+errorStrategy 'retry'
+maxRetries 2
 
 shell:
 '''
@@ -2342,6 +2390,9 @@ input:
 output:
  file "${name}.tsv"  into g127_11_outputFileTSV_g_115
 
+errorStrategy 'retry'
+maxRetries 3
+
 script:
 name = outputFileName[0]
 """    
@@ -2365,7 +2416,7 @@ if ($HOSTNAME == "ghpcc06.umassrc.org"){
 //* platform
 //* autofill
 if (!((params.run_Remove_Multimappers_with_Picard && (params.run_Remove_Multimappers_with_Picard == "yes")) || !params.run_Remove_Multimappers_with_Picard)){
-g128_21_mapped_reads_g128_22.into{g128_22_mapped_reads_g128_25; g128_22_mapped_reads_g126_121; g128_22_mapped_reads_g126_122; g128_22_mapped_reads_g126_123; g128_22_mapped_reads_g126_124; g128_22_mapped_reads_g126_126}
+g128_21_mapped_reads_g128_22.into{g128_22_mapped_reads_g128_25}
 g128_22_publish = Channel.empty()
 g128_22_log_file_g128_23 = Channel.empty()
 } else {
@@ -2377,7 +2428,7 @@ input:
  set val(name), file(bam) from g128_21_mapped_reads_g128_22
 
 output:
- set val(name), file("bam/${name}.bam")  into g128_22_mapped_reads_g128_25, g128_22_mapped_reads_g126_121, g128_22_mapped_reads_g126_122, g128_22_mapped_reads_g126_123, g128_22_mapped_reads_g126_124, g128_22_mapped_reads_g126_126
+ set val(name), file("bam/${name}.bam")  into g128_22_mapped_reads_g128_25
  set val(name), file("${name}*")  into g128_22_publish
  file "*_duplicates_stats.log"  into g128_22_log_file_g128_23
 
@@ -2404,13 +2455,183 @@ samtools flagstat bam/${name}.bam >> ${name}@Reads@${name}_duplicates_stats.log
 }
 
 
-params.gtf =  ""  //* @input
+macs2_callpeak_parameters = params.ChIP_Module_ChIP_Prep.macs2_callpeak_parameters
+peak_calling_type = params.ChIP_Module_ChIP_Prep.peak_calling_type
+band_width = params.ChIP_Module_ChIP_Prep.band_width
+bedtoolsCoverage_Parameters = params.ChIP_Module_ChIP_Prep.bedtoolsCoverage_Parameters
+compare_Custom_Bed = params.ChIP_Module_ChIP_Prep.compare_Custom_Bed
+output_prefix = params.ChIP_Module_ChIP_Prep.output_prefix
+sample_prefix = params.ChIP_Module_ChIP_Prep.sample_prefix
+input_prefix = params.ChIP_Module_ChIP_Prep.input_prefix
+//* @array:{output_prefix,sample_prefix,input_prefix} @multicolumn:{output_prefix,sample_prefix,input_prefix},{macs2_callpeak_parameters,peak_calling_type,band_width,bedtoolsCoverage_Parameters}
+samplehash = [:]
+inputhash = [:]
+output_prefix.eachWithIndex { key, i -> inputhash[key] = input_prefix[i] }
+output_prefix.eachWithIndex { key, i -> samplehash[key] = sample_prefix[i] }
+
+process ChIP_Module_ChIP_Prep {
+
+input:
+ val mate from g_122_mate_g128_25
+ set val(name), file(bam) from g128_22_mapped_reads_g128_25
+
+output:
+ file "bam/*.bam"  into g128_25_bam_file_g128_9
+ val output_prefix  into g128_25_name_g128_9
+
+when:
+(params.run_ChIP_MACS2 && (params.run_ChIP_MACS2 == "yes")) || !params.run_ChIP_MACS2
+
+script:
+"""
+mkdir -p bam
+mv ${bam} bam/${name}.bam
+"""
+}
+
+
+process ChIP_Module_ChIP_MACS2 {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /bam\/.*.bam$/) "chip/$filename"
+	else if (filename =~ /${name}.*$/) "chip/$filename"
+}
+
+input:
+ val mate from g_122_mate_g128_9
+ file bam from g128_25_bam_file_g128_9.collect()
+ val name from g128_25_name_g128_9.unique().flatten()
+
+output:
+ val compare_bed  into g128_9_compare_bed_g128_27
+ file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g134_1
+ set val(name), file("bam/*.bam")  into g128_9_bam_file_g128_10, g128_9_bam_file_g128_27, g128_9_bam_file_g126_121, g128_9_bam_file_g126_122, g128_9_bam_file_g126_123, g128_9_bam_file_g126_124, g128_9_bam_file_g126_126
+ file "${name}*"  into g128_9_resultsdir_g_79
+ val name  into g128_9_name
+
+script:
+genomeSizeText = ""
+if (params.genome_build.contains("mouse")){
+    genomeSizeText = "-g mm"
+} else if (params.genome_build.contains("human")){
+    genomeSizeText = "-g hs"
+}
+
+if (peak_calling_type == "narrow"){
+    peakcallingType = ""
+} else if (peak_calling_type == "broad"){
+    peakcallingType = "--broad"
+}
+
+compare_bed = "merged.bed"
+compare_Custom_Bed = compare_Custom_Bed.trim();
+if (compare_Custom_Bed != ""){
+    compare_bed = compare_Custom_Bed
+}
+inputsList = inputhash[name] 
+samplesList = samplehash[name]
+
+"""
+echo ${samplesList}
+echo ${inputsList}
+echo $name
+mkdir -p bam
+
+#samplesList
+samplesList="\$(echo -e "${samplesList}" | tr -d '[:space:]')" 
+IFS=',' read -ra eachSampleAr <<< "\${samplesList}"
+numSamples=\${#eachSampleAr[@]}
+eachSampleArBam=( "\${eachSampleAr[@]/%/.bam }" )
+sample_set=\${eachSampleArBam[@]}
+bam_set=\${eachSampleArBam[@]}
+
+#inputsList
+input_set=""
+inputsList="\$(echo -e "${inputsList}" | tr -d '[:space:]')" 
+if [ "\${inputsList}" != "" ]; then
+    IFS=',' read -ra eachInputAr <<< "\${inputsList}"
+    eachInputArbam=( "\${eachInputAr[@]/%/.bam }" )
+    input_set="-c \${eachInputArbam[@]}" 
+    
+fi
+echo \${eachSampleArBam[@]}
+
+macs2 callpeak --bw ${band_width} -t \${sample_set} \${input_set} -n ${name} ${genomeSizeText} ${macs2_callpeak_parameters} ${peakcallingType}
+
+#bam files
+if [ "\$numSamples" -gt "1" ]; then
+    samtools merge bam/${name}.bam \$bam_set
+else 
+    rsync -a  \$bam_set bam/${name}.bam
+fi
+
+"""
+}
+
+//* params.run_Scripture =  "no"  //* @dropdown @options:"yes","no" @show_settings:"Scripture_peakrescore"
+//* params.peakrescore_path =  ""  //* @input
+//* params.peakrescore_class_path =  ""  //* @input
+
+if (!(params.run_Scripture == "yes")){
+g128_9_bed_g128_10.into{g128_10_bed_g128_26}
+} else {
+
+
+process ChIP_Module_Scripture_peakrescore {
+
+input:
+ file bed from g128_9_bed_g128_10
+ set val(name), file(bam) from g128_9_bam_file_g128_10
+
+output:
+ file "${name}_trim.bed"  into g128_10_bed_g128_26
+
+when:
+params.run_Scripture == "yes"
+
+script:
+window = params.ChIP_Module_Scripture_peakrescore.window
+trimFraction = params.ChIP_Module_Scripture_peakrescore.trimFraction
+windowText = (window.toString() != "") ? "-window ${window}" : ""
+trimFractionText = (trimFraction.toString() != "") ? "-trimFraction ${trimFraction}" : ""
+"""
+samtools index ${bam}
+cat ${bed} | awk '{print \$1"\t"\$2"\t"\$3"\t"\$4"\t"\$5}' > ${name}_clean 
+java -cp ${params.peakrescore_path}:${params.peakrescore_class_path} peaks.PeakTrim -task trimByFractionOfScale -in ${name}_clean -libAlignment ${bam}  $windowText $trimFractionText -out ${name}_trim.bed 
+"""
+
+}
+}
+
+
+
+process ChIP_Module_bed_merge {
+
+publishDir params.outdir, overwrite: true, mode: 'copy',
+	saveAs: {filename ->
+	if (filename =~ /merged.bed$/) "chip/$filename"
+}
+
+input:
+ file bed from g128_10_bed_g128_26.collect()
+
+output:
+ file "merged.bed"  into g128_26_bed_g128_27
+
+"""
+ cat ${bed} | cut -f -6 | bedtools sort -i stdin | bedtools slop -i stdin -b 100 -g ${params.genome_sizes} | bedtools merge -i stdin | awk '{print \$0"\t"\$1"_"\$2"_"\$3}' > merged.bed
+
+"""
+}
+
+//* params.gtf =  ""  //* @input
 
 
 process BAM_Analysis_Module_featureCounts {
 
 input:
- set val(name), file(bam) from g128_22_mapped_reads_g126_126
+ set val(name), file(bam) from g128_9_bam_file_g126_126
  val paired from g_122_mate_g126_126
  each run_params from g126_125_run_parameters_g126_126
 
@@ -2562,7 +2783,7 @@ for($l = 0; $l <= $#run_name; $l++) {
 '''
 }
 
-params.bed =  ""  //* @input
+//* params.bed =  ""  //* @input
 
 process BAM_Analysis_Module_RSeQC {
 
@@ -2572,7 +2793,7 @@ publishDir params.outdir, overwrite: true, mode: 'copy',
 }
 
 input:
- set val(name), file(bam) from g128_22_mapped_reads_g126_122
+ set val(name), file(bam) from g128_9_bam_file_g126_122
 
 output:
  file "result/*.out"  into g126_122_outputFileOut_g126_95, g126_122_outputFileOut_g_79
@@ -2708,7 +2929,7 @@ sub getVals{
 
 }
 
-params.pdfbox_path =  ""  //* @input
+//* params.pdfbox_path =  ""  //* @input
 //* autofill
 if ($HOSTNAME == "default"){
     $CPU  = 1
@@ -2727,7 +2948,7 @@ if ($HOSTNAME == "ghpcc06.umassrc.org"){
 process BAM_Analysis_Module_Picard {
 
 input:
- set val(name), file(bam) from g128_22_mapped_reads_g126_121
+ set val(name), file(bam) from g128_9_bam_file_g126_121
 
 output:
  file "*_metrics"  into g126_121_outputFileOut_g126_82
@@ -2857,7 +3078,7 @@ sub getMetricVals{
 
 }
 
-params.genome_sizes =  ""  //* @input
+//* params.genome_sizes =  ""  //* @input
 
 //* autofill
 if ($HOSTNAME == "default"){
@@ -2882,7 +3103,7 @@ publishDir params.outdir, overwrite: true, mode: 'copy',
 }
 
 input:
- set val(name), file(bam) from g128_22_mapped_reads_g126_124
+ set val(name), file(bam) from g128_9_bam_file_g126_124
 
 output:
  file "*.bw"  into g126_124_outputFileBw
@@ -2910,7 +3131,22 @@ wigToBigWig -clip -itemsPerSlot=1 ${name}.bg ${params.genome_sizes} ${name}.bw
 igv_extention_factor = params.BAM_Analysis_Module_IGV_BAM2TDF_converter.igv_extention_factor
 igv_window_size = params.BAM_Analysis_Module_IGV_BAM2TDF_converter.igv_window_size
 
-params.genome =  ""  //* @input
+//* params.genome =  ""  //* @input
+
+//* autofill
+if ($HOSTNAME == "default"){
+    $CPU  = 1
+    $MEMORY = 32
+}
+//* platform
+if ($HOSTNAME == "ghpcc06.umassrc.org"){
+    $TIME = 400
+    $CPU  = 1
+    $MEMORY = 32
+    $QUEUE = "long"
+} 
+//* platform
+//* autofill
 
 process BAM_Analysis_Module_IGV_BAM2TDF_converter {
 
@@ -2921,7 +3157,7 @@ publishDir params.outdir, overwrite: true, mode: 'copy',
 
 input:
  val mate from g_122_mate_g126_123
- set val(name), file(bam) from g128_22_mapped_reads_g126_123
+ set val(name), file(bam) from g128_9_bam_file_g126_123
 
 output:
  file "*.tdf"  into g126_123_outputFileOut
@@ -2945,178 +3181,8 @@ igvtools count -w ${igv_window_size} -e ${igv_extention_factor} ${pairedText} ${
 """
 }
 
-macs2_callpeak_parameters = params.ChIP_Module_ChIP_Prep.macs2_callpeak_parameters
-peak_calling_type = params.ChIP_Module_ChIP_Prep.peak_calling_type
-band_width = params.ChIP_Module_ChIP_Prep.band_width
-bedtoolsCoverage_Parameters = params.ChIP_Module_ChIP_Prep.bedtoolsCoverage_Parameters
-compare_Custom_Bed = params.ChIP_Module_ChIP_Prep.compare_Custom_Bed
-output_prefix = params.ChIP_Module_ChIP_Prep.output_prefix
-sample_prefix = params.ChIP_Module_ChIP_Prep.sample_prefix
-input_prefix = params.ChIP_Module_ChIP_Prep.input_prefix
-//* @array:{output_prefix,sample_prefix,input_prefix} @multicolumn:{output_prefix,sample_prefix,input_prefix},{macs2_callpeak_parameters,peak_calling_type,band_width,bedtoolsCoverage_Parameters}
-samplehash = [:]
-inputhash = [:]
-output_prefix.eachWithIndex { key, i -> inputhash[key] = input_prefix[i] }
-output_prefix.eachWithIndex { key, i -> samplehash[key] = sample_prefix[i] }
-
-process ChIP_Module_ChIP_Prep {
-
-input:
- val mate from g_122_mate_g128_25
- set val(name), file(bam) from g128_22_mapped_reads_g128_25
-
-output:
- file "bam/*.bam"  into g128_25_bam_file_g128_9
- val output_prefix  into g128_25_name_g128_9
-
-when:
-(params.run_ChIP_MACS2 && (params.run_ChIP_MACS2 == "yes")) || !params.run_ChIP_MACS2
-
-script:
-"""
-mkdir -p bam
-mv ${bam} bam/${name}.bam
-"""
-}
-
-
-process ChIP_Module_ChIP_MACS2 {
-
-publishDir params.outdir, overwrite: true, mode: 'copy',
-	saveAs: {filename ->
-	if (filename =~ /bam\/.*.bam$/) "chip/$filename"
-	else if (filename =~ /${name}.*$/) "chip/$filename"
-}
-
-input:
- val mate from g_122_mate_g128_9
- file bam from g128_25_bam_file_g128_9.collect()
- val name from g128_25_name_g128_9.unique().flatten()
-
-output:
- val compare_bed  into g128_9_compare_bed_g128_27
- file "*${peak_calling_type}Peak"  into g128_9_bed_g128_10, g128_9_bed_g134_1
- set val(name), file("bam/*.bam")  into g128_9_bam_file_g128_10, g128_9_bam_file_g128_27
- file "${name}*"  into g128_9_resultsdir_g_79
- val name  into g128_9_name
-
-script:
-genomeSizeText = ""
-if (params.genome_build.contains("mouse")){
-    genomeSizeText = "-g mm"
-} else if (params.genome_build.contains("human")){
-    genomeSizeText = "-g hs"
-}
-
-if (peak_calling_type == "narrow"){
-    peakcallingType = ""
-} else if (peak_calling_type == "broad"){
-    peakcallingType = "--broad"
-}
-
-compare_bed = "merged.bed"
-compare_Custom_Bed = compare_Custom_Bed.trim();
-if (compare_Custom_Bed != ""){
-    compare_bed = compare_Custom_Bed
-}
-inputsList = inputhash[name] 
-samplesList = samplehash[name]
-
-"""
-echo ${samplesList}
-echo ${inputsList}
-echo $name
-mkdir -p bam
-
-#samplesList
-samplesList="\$(echo -e "${samplesList}" | tr -d '[:space:]')" 
-IFS=',' read -ra eachSampleAr <<< "\${samplesList}"
-numSamples=\${#eachSampleAr[@]}
-eachSampleArBam=( "\${eachSampleAr[@]/%/.bam }" )
-sample_set=\${eachSampleArBam[@]}
-bam_set=\${eachSampleArBam[@]}
-
-#inputsList
-input_set=""
-inputsList="\$(echo -e "${inputsList}" | tr -d '[:space:]')" 
-if [ "\${inputsList}" != "" ]; then
-    IFS=',' read -ra eachInputAr <<< "\${inputsList}"
-    eachInputArbam=( "\${eachInputAr[@]/%/.bam }" )
-    input_set="-c \${eachInputArbam[@]}" 
-    
-fi
-echo \${eachSampleArBam[@]}
-
-macs2 callpeak --bw ${band_width} -t \${sample_set} \${input_set} -n ${name} ${genomeSizeText} ${macs2_callpeak_parameters} ${peakcallingType}
-
-#bam files
-if [ "\$numSamples" -gt "1" ]; then
-    samtools merge bam/${name}.bam \$bam_set
-else 
-    rsync -a  \$bam_set bam/${name}.bam
-fi
-
-"""
-}
-
-params.run_Scripture =  "no"  //* @dropdown @options:"yes","no" @show_settings:"Scripture_peakrescore"
-params.peakrescore_path =  ""  //* @input
-params.peakrescore_class_path =  ""  //* @input
-
-if (!(params.run_Scripture == "yes")){
-g128_9_bed_g128_10.into{g128_10_bed_g128_26}
-} else {
-
-
-process ChIP_Module_Scripture_peakrescore {
-
-input:
- file bed from g128_9_bed_g128_10
- set val(name), file(bam) from g128_9_bam_file_g128_10
-
-output:
- file "${name}_trim.bed"  into g128_10_bed_g128_26
-
-when:
-params.run_Scripture == "yes"
-
-script:
-window = params.ChIP_Module_Scripture_peakrescore.window
-trimFraction = params.ChIP_Module_Scripture_peakrescore.trimFraction
-windowText = (window.toString() != "") ? "-window ${window}" : ""
-trimFractionText = (trimFraction.toString() != "") ? "-trimFraction ${trimFraction}" : ""
-"""
-samtools index ${bam}
-cat ${bed} | awk '{print \$1"\t"\$2"\t"\$3"\t"\$4"\t"\$5}' > ${name}_clean 
-java -cp ${params.peakrescore_path}:${params.peakrescore_class_path} peaks.PeakTrim -task trimByFractionOfScale -in ${name}_clean -libAlignment ${bam}  $windowText $trimFractionText -out ${name}_trim.bed 
-"""
-
-}
-}
-
-
-
-process ChIP_Module_bed_merge {
-
-publishDir params.outdir, overwrite: true, mode: 'copy',
-	saveAs: {filename ->
-	if (filename =~ /merged.bed$/) "chip/$filename"
-}
-
-input:
- file bed from g128_10_bed_g128_26.collect()
-
-output:
- file "merged.bed"  into g128_26_bed_g128_27
-
-"""
- cat ${bed} | cut -f -6 | bedtools sort -i stdin | bedtools slop -i stdin -b 100 -g ${params.genome_sizes} | bedtools merge -i stdin | awk '{print \$0"\t"\$1"_"\$2"_"\$3}' > merged.bed
-
-"""
-}
-
-params.homer_dir =  ""  //* @input
-params.configureHomer_path =  ""  //* @input
+//* params.homer_dir =  ""  //* @input
+//* params.configureHomer_path =  ""  //* @input
 
 process Homer_Find_Motif_Module_homer_download_install {
 
@@ -3148,7 +3214,7 @@ fi
 
 }
 
-params.homer_dir =  ""  //* @input
+//* params.homer_dir =  ""  //* @input
 
 process Homer_Find_Motif_Module_homer_find_Motifs_Genome {
 
@@ -3233,7 +3299,7 @@ foreach my $d (@alndirs){
 '''
 }
 
-params.run_FastQC =  "no"  //* @dropdown @options:"yes","no" @description:"FastQC provides quality control checks on raw sequence data."
+//* params.run_FastQC =  "no"  //* @dropdown @options:"yes","no" @description:"FastQC provides quality control checks on raw sequence data."
 
 
 
@@ -3334,7 +3400,8 @@ echo ${compare_bed}
 if [ -s "${compare_bed}" ]; then 
     echo " bed file exists and is not empty "
         samtools view -H ${name}.bam | grep -P "@SQ\\tSN:" | sed 's/@SQ\\tSN://' | sed 's/\\tLN:/\\t/' > ${name}_chroms
-        bedtools intersect -abam ${name}.bam -b ${compare_bed} > temp_${name}.bam
+        samtools sort -T ${name} -o ${name}_sorted.bam ${name}.bam
+        bedtools intersect -abam ${name}_sorted.bam -b ${compare_bed} > temp_${name}.bam
         bedtools sort -faidx ${name}_chroms -i ${compare_bed}  | bedtools coverage ${bedtoolsCoverage_Parameters} -a stdin -b temp_${name}.bam  > temp_${name}.bed
         # 'The number of features in B that overlapped the A interval' multiplied by 'fraction of bases in A that had non-zero coverage from features in B'.
         awk '{\$NF=\$(NF-3)*\$NF;print }' OFS="\\t" temp_${name}.bed | grep -v all > temp_${name}_hist.bed
@@ -3430,6 +3497,9 @@ input:
 
 output:
  file "deduplication_summary.tsv"  into g128_23_outputFileTSV_g_115
+
+errorStrategy 'retry'
+maxRetries 2
 
 shell:
 '''
@@ -3567,7 +3637,8 @@ my @rawFiles = split(/[\\n]+/, $contents);
 my @files = ();
 # order must be in this order for chipseq pipeline: bowtie->dedup
 # rsem bam pipeline: dedup->rsem, star->dedup
-my @order = ("adapter_removal","trimmer","quality","extractUMI","sequential_mapping","bowtie","star","hisat2","tophat2", "dedup","rsem");
+# riboseq ncRNA_removal->star
+my @order = ("adapter_removal","trimmer","quality","extractUMI","extractValid","sequential_mapping","ncRNA_removal","bowtie","star","hisat2","tophat2", "dedup","rsem","kallisto","esat","count");
 for ( my $k = 0 ; $k <= $#order ; $k++ ) {
     for ( my $i = 0 ; $i <= $#rawFiles ; $i++ ) {
         if ( $rawFiles[$i] =~ /$order[$k]/ ) {

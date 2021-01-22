@@ -14,20 +14,19 @@ ChIP-seq Pipeline maps reads with Bowtie2, removes duplicates with Picard or Sam
 
 #### Inputs:
 
-  - Reads
-  - ChIP-prep section
+  - `Reads`
+  - `ChIP-prep section`: To enable peak calling, please click settings of `run_ChIP_MACS2` and enter your samples by clicking `Add` button in the `Sample Definitions` section as described below:
+	
+	There are three fields need to be entered for each sample: output-prefix, sample-prefix, and input-prefix. 
 
-To enable peak calling, please fill the **Sample Definitions** into the settings of run_ChIP_MACS2 as described below:
-There are three fields need to be entered: output-prefix, sample-prefix, and input-prefix. 
+	| Output-Prefix | Sample-Prefix | Input-Prefix (optional) |
+	|---------------|---------------|-------------------------|
+	| exper-rep1    |  exper-rep1   |                         |
+	| control-rep1  |  control-rep1 |                         |
 
-| Output-Prefix | Sample-Prefix | Input-Prefix (optional) |
-|---------------|---------------|-------------------------|
-| exper-rep1    |  exper-rep1   |                         |
-| control-rep1  |  control-rep1 |                         |
-
-* Output-Prefix: Output prefix of the sample. Final reports will be created by using this sample name. 
-* Sample-Prefix: Sample name which is entered in the reads section.
-* Input-Prefix (optional):  If your experiment has background sample (input), you can specify its prefix in this section.
+	* Output-Prefix: Output prefix of the sample. Final reports will be created by using this sample name. 
+	* Sample-Prefix: Sample name which is entered in the reads section.
+	* Input-Prefix (optional):  If your experiment has background sample (input), you can specify its prefix in this section.
 
 #### Citation:
 
@@ -47,7 +46,7 @@ Yukselen, O., Turkyilmaz, O., Ozturk, A.R. et al. DolphinNext: a distributed dat
   - Multiqc v1.7
   - Trimmomatic v0.39
   - Igvtools v2.5.3
-  - Bedtools v2.27.1
+  - Bedtools v2.29.2
   - Fastx_toolkit v0.0.14
   - Ucsc-wigToBigWig v366
   - Pdfbox-App v2.0.0
